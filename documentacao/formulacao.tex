@@ -1,0 +1,184 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- PREÂMBULO ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+% \usepackage{natbib}
+
+\geometry{
+ a4paper,
+ left=2.5cm,
+ right=2.5cm,
+ top=2.5cm,
+ bottom=2.5cm
+}
+
+\hyphenation{de-sem-bar-que o-ti-mi-za-ção rea-bas-te-ci-men-to}
+
+% --- TÍTULO ---
+\title{Otimização do Serviço de Embarque Remoto de um Aeroporto}
+\author{André Costa Batista}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Este documento fornece uma formulação matemática para o problema de otimização do serviço de embarque remoto de um aeroporto, considerando as restrições de tempo e capacidade dos ônibus. O problema é modelado como um problema de roteamento de veículos com coleta e entrega acopladas, com múltiplas viagens, limites de distância e janelas de tempo. As equações matemáticas detalham a função objetivo, as variáveis de decisão e as restrições que regem o sistema.
+\end{abstract}
+
+\noindent \textbf{Palavras-chave}: otimização, pesquisa operacional, roteamento de veículos, coleta e entrega, múltiplas viagens.
+
+\section{Introdução}
+
+Seja um aeroporto em um dia de operação normal. Existe uma certa quantidade de embarques e desembarque que são feitas remotamente, i.e., ônibus idênticos são deslocados para levar passageiros do portão de embarque para o avião e vice-versa. O número de passageiros em um voo é geralmente maior que o número de assentos disponíveis no ônibus, o que implica que múltiplas viagens ou múltiplos ônibus são necessários para completar o transporte de todos os passageiros. Além disso, cada voo tem um horário específico para embarque e desembarque, o que impõe janelas de tempo para o transporte dos passageiros.
+
+Cada voo, seja de embarque ou desembarque, pode ser desmembrado em um conjunto de requisições. Ou seja, se um voo tem 150 passageiros e o ônibus tem capacidade para 50, então são necessárias 3 requisições para completar o transporte. Cada requisição consiste em uma tarefa de coleta (no caso de embarque, no portão de embarque; no caso de desembarque, no avião) e uma tarefa de entrega (no caso de embarque, no avião; no caso de desembarque, no portão de desembarque). Essas tarefas são acopladas, ou seja, a entrega da requisição só pode ser feita após a coleta. Além disso, cada grupo de passageiros podem ter uma janela de tempo específica para coleta, de maneira que a ordem dos embarques ou desembarques são respeitados e o prazo para que o voo termine o embarque ou desembarque também seja viável.
+
+Os ônibus são idênticos e partem de uma garagem localizada no aeroporto. Após completar uma ou mais requisições, o ônibus deve retornar à garagem para reabastecimento antes de atender novas requisições. Cada ônibus tem um limite de distância que ele pode percorrer antes de precisar retornar à garagem para reabastecimento.
+
+Desta forma, podemos tratar o problema de alocar ônibus para o embarque ou desembarque remoto de um aeroporto como um problema de roteamento de veículos com coleta e entrega acopladas, com múltiplas viagens, com limite de distância e com janela de tempo onde cada nó é uma requisição com um grupo dos passageiros que vão embarcar ou desembarcar de um voo específico. A formulação do problema de roteamento com coleta e entrega e janelas de tempo é conhecido na literatura como \textit{Pickup and Delivery Problem with Time Windows} (PDPTW). Quando os pares de coleta/entrega são acoplados, esta formulação é conhecida como \textit{Dial-a-Ride Problem} (DARP).
+
+\section{Definições do Modelo}
+
+\subsection{Conjuntos}
+\begin{itemize}
+    \item $N$: Conjunto de requisições, $N = \{1, 2, \dots, n\}$.
+    \item $C$: Conjunto dos pontos de coleta, $C = \{1, 2, \dots, n\}$.
+    \item $E$: Conjunto dos pontos de entrega, $E = \{n+1, n+2, \dots, 2n\}$.
+    \item $V$: Conjunto das viagens, $V = \{1, 2, \dots, r\}$.
+    \item $K$: Conjunto de ônibus disponíveis, $K = \{1, 2, \dots, m\}$.
+    \item $N_0$: Conjunto de todas as requisições mais a garagem, representado pelo nó $0$. $N_0 = N \cup \{0\}$.
+\end{itemize}
+
+\subsection{Parâmetros}
+
+Os seguintes parâmetros são necessários para o modelo.
+
+\begin{itemize}
+    \item $d_{ij}$: Distância entre um ponto $i$ e um ponto $j$, sejam eles de coleta ou de entrega. Por exemplo, a distância entre o ponto de coleta da requisição $i$ e seu ponto de entrega é $d_{i, i+n}$. Já a distância do ponto de entrega da requisição $i$ até o ponto de coleta da requisição $j$ é $d_{i+n, j}$.
+    \item $D_{ij}$: Distância entre uma requisição $i$ e outra $j$. Considerando os pontos de coleta e entrega das requisições, a distância $D_{ij}$ é definida como: $$ D_{ij} = d_{i, i+n} + d_{i+n, j} $$ onde $i, j \in N$. As exceções são as distâncias envolvendo a garagem. Nesses casos, $D_{0i} = d_{0i}$ e $D_{i0} = d_{i+n, 0}$.
+    \item $c_{ij}$: Custo de atender uma requisição $i$ e depois a requisição $j$. Neste problema, o custo significará a distância total percorrida para atender ambas as requisições, logo $c_{ij} = D_{ij}$.
+    \item $s_i$: Duração total de serviço de um ônibus em uma requisição $i$. Isso já inclui o tempo de acomodação e saída do ônibus. No caso da garagem ($s_0$), se refere ao tempo de abastecimento.
+    \item $t_{ij}$: Tempo de viagem do ônibus entre os pontos $i$ e $j$, sejam eles de coleta ou de entrega. Por exemplo, o tempo de viagem do ônibus entre o ponto de coleta da requisição $i$ e seu ponto de entrega é $t_{i, i+n}$. Já o tempo de viagem do ônibus entre o ponto de entrega da requisição $i$ até o ponto de coleta da requisição $j$ é $t_{i+n, j}$.
+    \item $T_{ij}$: Tempo total de viagem do ônibus entre as requisições $i$ e $j$. Esse tempo é definido pelo trajeto entre o ponto de coleta e de entrega da requisição $i$ e o trajeto da entrega de $i$ para a coleta de $j$. Ou seja: $$T_{ij} = t_{i, i+n} + t_{i+n, j}$$
+    \item $e_i$: Tempo de início da janela de tempo da coleta da requisição $i$. Ou seja, o limite inferior para o instante em que um ônibus deve chegar no ponto de coleta da requisição $i$.
+    \item $l_i$: Tempo de fim da janela de tempo da coleta da requisição $i$. Ou seja, o limite superior para o instante em que um ônibus deve chegar no ponto de coleta da requisição $i$.
+    \item $D^{\max}$: Distância máxima total de autonomia para toda a frota. Em outras palavras, a distância máxima que cada ônibus pode percorrer antes de precisar retornar à garagem para reabastecimento.
+\end{itemize}
+
+\subsection{Variáveis de Decisão}
+
+\begin{itemize}
+    \item $x_{ijvk} \in {0, 1}$: Variável binária que assume valor 1 se o ônibus $k$ viaja da requisição $i$ para a requisição $j$ na viagem $v$, e 0 caso contrário.
+    \item $B_{ivk} \ge 0$: Variável contínua que representa o instante de início do serviço na coleta da requisição $i$ pelo ônibus $k$ na viagem $v$.
+    \item $y_{vk} \in {0, 1}$: Variável binária que assume valor 1 se o ônibus $k$ realiza a viagem $v$, e 0 caso contrário.
+\end{itemize}
+
+\section{Modelo Matemático}
+
+\subsection{Função Objetivo}
+
+Minimizar o custo total que, neste caso, equivale à distância total percorrida por todos os ônibus.
+
+\begin{equation}
+\text{Minimizar} \quad Z = \sum_{k \in K} \sum_{v \in V} \sum_{i \in N_0} \sum_{\substack{j \in N_0\\i \neq j}} c_{ij} x_{ijvk}
+\end{equation}
+
+\subsection{Restrições}
+
+\paragraph{Atendimento das Requisições:} Cada requisição deve ser realizada exatamente uma vez.
+\begin{equation}
+\sum_{k \in K} \sum_{v \in V} \sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} = 1, \quad \forall j \in N
+\end{equation}
+
+\paragraph{Conservação de Fluxo} O fluxo é conservado em cada nó de requisição.
+\begin{equation}
+\sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} - \sum_{\substack{i \in N_0,\\i \neq j}} x_{jivk} = 0, \quad \forall j \in N, \forall v \in V, \forall k \in K
+\end{equation}
+
+\paragraph{Início e Fim de Cada Viagem:} Cada viagem utilizada ($y_{vk} = 1$) deve começar e terminar no depósito.
+\begin{align}
+\sum_{j \in N} x_{0jvk} &= y_{vk} \quad \forall k \in K, \forall v \in V & \\
+\sum_{i \in N} x_{i0vk} &= y_{vk} \quad \forall k \in K, \forall v \in V &
+\end{align}
+
+\paragraph{Sequência de Viagens:} Uma viagem $v$ só pode ser utilizada se a viagem anterior $v-1$ também for utilizada.
+\begin{equation}
+y_{vk} \le y_{v-1, k} \quad \forall k \in K, \forall v \in V, v > 1
+\end{equation}
+
+\paragraph{Janela de Tempo da Coleta:} O início do serviço na coleta da requisição $i$ deve respeitar sua janela de tempo seja qual a viagem $v$ e o ônibus $k$ que realize esse requisição.
+\begin{equation}
+e_i \sum_{j \in N_0} x_{jivk} \le B_{ivk} \le l_i \sum_{j \in N_0} x_{jivk}, \quad \forall i \in N, \forall v \in V, \forall k \in K
+\end{equation}
+
+\paragraph{Sequência Temporal das Rotas (Intra-viagem):} Garante a consistência dos tempos de chegada entre requisições consecutivas de uma viagem $v$ ($M$ é uma constante grande).
+\begin{equation}
+B_{ik} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K
+\end{equation}
+
+\noindent Para contemplar o caso da saída da garagem na primeira viagem ($v=1$):
+
+\begin{equation}
+    s_0 + T_{0i} - M(1 - x_{0i1k}) \le B_{i1k}, \quad \forall i \in N, \forall k \in K
+\end{equation}
+
+\paragraph{Sequência Temporal das Rotas (Inter-viagem):} A partida da garagem para uma nova viagem $v$ só pode ocorrer após o retorno do ônibus $k$ da viagem anterior $v-1$.
+\begin{equation}
+    B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \le B_{ivk}, \quad \forall i \in N, \forall v \in V, v > 1, \forall k \in K
+\end{equation}
+
+\paragraph{Limite de Distância por Viagem:} Garante que a distância acumulada em uma viagem não exceda um limite máximo.
+\begin{equation}
+\sum_{i \in N_0} \sum_{\substack{j \in N_0,\\i \neq j}} D_{ij} x_{ijvk} \le D^{\max}, \quad \forall k \in K, \forall v \in V
+\end{equation}
+
+\paragraph{Domínio das Variáveis:}
+\begin{align}
+x_{ijvk} &\in \{0, 1\}, \quad \forall i,j \in N_0, \forall v \in V, k \in K \\
+y_{vk} &\in \{0, 1\}, \quad \forall v \in V, k \in K \\
+B_{ik} &\ge 0, \quad \forall i \in N, k \in K
+\end{align}
+
+% \bibliographystyle{plain}
+% \bibliography{refs}
+
+\begin{thebibliography}{1}
+
+\bibitem{cattaruzza2016multi}
+Diego Cattaruzza, Nabil Absi, and Dominique Feillet.
+\newblock The multi-trip vehicle routing problem with time windows and release
+  dates.
+\newblock {\em Transportation Science}, 50(2):676--693, 2016.
+
+\bibitem{cordeau2007dial}
+Jean-Fran{\c{c}}ois Cordeau and Gilbert Laporte.
+\newblock The dial-a-ride problem: models and algorithms.
+\newblock {\em Annals of operations research}, 153(1):29--46, 2007.
+
+\bibitem{molenbruch2017typology}
+Yves Molenbruch, Kris Braekers, and An~Caris.
+\newblock Typology and literature review for dial-a-ride problems.
+\newblock {\em Annals of Operations Research}, 259(1):295--325, 2017.
+
+\bibitem{parragh2008survey}
+Sophie~N Parragh, Karl~F Doerner, and Richard~F Hartl.
+\newblock A survey on pickup and delivery problems: Part ii: Transportation
+  between pickup and delivery locations.
+\newblock {\em Journal f{\"u}r Betriebswirtschaft}, 58(2):81--117, 2008.
+
+\bibitem{savelsbergh1995general}
+Martin~WP Savelsbergh and Marc Sol.
+\newblock The general pickup and delivery problem.
+\newblock {\em Transportation science}, 29(1):17--29, 1995.
+
+\end{thebibliography}
+
+
+\end{document}

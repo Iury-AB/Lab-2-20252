@@ -1,0 +1,299 @@
+\documentclass[10pt]{beamer}
+
+% --- TEMA E CONFIGURAÇÕES ---
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% --- PACOTES ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+
+% --- INFORMAÇÕES DO DOCUMENTO ---
+\title[Otimização de Embarque Remoto]{Otimização do Serviço de Embarque Remoto de um Aeroporto}
+\subtitle{ELE634 Laboratório de Sistemas II}
+\author[André Batista]{André Costa Batista}
+\institute[ELE634]{Universidade Federal de Minas Gerais\\Escola de Engenharia\\Departamento de Engenharia Elétrica}
+\date{\today}
+
+% --- INÍCIO DO DOCUMENTO ---
+\begin{document}
+
+% --- SLIDE DE TÍTULO ---
+\frame{\titlepage}
+
+% --- SLIDE DE ÍNDICE ---
+\begin{frame}
+\frametitle{Roteiro}
+\tableofcontents
+\end{frame}
+
+% --- SEÇÃO 1: INTRODUÇÃO ---
+\section{Introdução}
+
+\begin{frame}
+\frametitle{Contexto do Problema}
+\begin{itemize}
+    \item Aeroporto em operação normal com embarques/desembarques remotos
+    \item Ônibus idênticos transportam passageiros entre portões e aviões
+    \item Número de passageiros > capacidade do ônibus
+    \item Necessidade de múltiplas viagens ou múltiplos ônibus
+    \item Cada voo possui janelas de tempo específicas
+\end{itemize}
+
+\vspace{0.5cm}
+\begin{center}
+\textbf{Objetivo: Minimizar a distância total percorrida}
+\end{center}
+\end{frame}
+
+\begin{frame}
+\frametitle{Conceito de Requisições}
+\begin{block}{Definição}
+Cada voo é desmembrado em um conjunto de \textbf{requisições}
+\end{block}
+
+\begin{exampleblock}{Exemplo}
+\begin{itemize}
+    \item Voo com 150 passageiros
+    \item Ônibus com capacidade para 50 passageiros
+    \item Resultado: 3 requisições necessárias
+\end{itemize}
+\end{exampleblock}
+
+\begin{alertblock}{Características das Requisições}
+\begin{itemize}
+    \item Cada requisição: coleta + entrega (acopladas)
+    \item Janelas de tempo específicas para cada requisição
+    \item Ordem dos embarques/desembarques deve ser respeitada
+\end{itemize}
+\end{alertblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Restrições Operacionais}
+\begin{itemize}
+    \item \textbf{Garagem central}: Todos os ônibus partem da garagem
+    \item \textbf{Reabastecimento obrigatório}: Após completar requisições
+    \item \textbf{Limite de autonomia}: Distância máxima por viagem
+    \item \textbf{Múltiplas viagens}: Ônibus pode fazer várias viagens por dia
+    \item \textbf{Pares acoplados}: Coleta e entrega pela mesma unidade
+\end{itemize}
+
+\vspace{0.5cm}
+\begin{block}{Classificação na Literatura}
+\begin{itemize}
+    \item \textbf{PDPTW}: Pickup and Delivery Problem with Time Windows
+    \item \textbf{DARP}: Dial-a-Ride Problem (pares acoplados)
+    \item Problema de múltiplas viagens com reabastecimento
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Palavras-chave e Área de Pesquisa}
+\begin{block}{Área de Pesquisa}
+\begin{itemize}
+    \item \textbf{Otimização}
+    \item \textbf{Pesquisa Operacional}
+    \item \textbf{Roteamento de Veículos}
+    \item \textbf{Problemas de Coleta e Entrega}
+    \item \textbf{Múltiplas Viagens}
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Diferencial do Problema}
+Combinação única de características: pares acoplados, múltiplas viagens, 
+reabastecimento, janelas de tempo e limite de autonomia
+\end{alertblock}
+\end{frame}
+
+% --- SEÇÃO 2: MODELO MATEMÁTICO ---
+\section{Modelo Matemático}
+
+\begin{frame}
+\frametitle{Conjuntos do Modelo}
+\begin{itemize}
+    \item $N = \{1, 2, \dots, n\}$: Conjunto de requisições
+    \item $C = \{1, 2, \dots, n\}$: Pontos de coleta
+    \item $E = \{n+1, n+2, \dots, 2n\}$: Pontos de entrega
+    \item $V = \{1, 2, \dots, r\}$: Conjunto das viagens
+    \item $K = \{1, 2, \dots, m\}$: Conjunto de ônibus disponíveis
+    \item $N_0 = N \cup \{0\}$: Requisições + garagem (nó 0)
+\end{itemize}
+
+\vspace{0.5cm}
+\begin{alertblock}{Observação}
+Para cada requisição $i \in N$, o ponto de coleta é $i$ e o ponto de entrega é $i+n$
+\end{alertblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Parâmetros Principais}
+\begin{itemize}
+    \item $d_{ij}$: Distância entre pontos $i$ e $j$
+    \item $D_{ij}$: Distância entre requisições $i$ e $j$
+    \begin{equation*}
+    D_{ij} = d_{i, i+n} + d_{i+n, j}
+    \end{equation*}
+    \item $c_{ij} = D_{ij}$: Custo (distância) entre requisições
+    \item $s_i$: Duração de serviço na requisição $i$
+    \item $t_{ij}$: Tempo de viagem entre pontos $i$ e $j$
+    \item $T_{ij}$: Tempo de viagem entre requisições $i$ e $j$
+    \begin{equation*}
+        T_{ij} =  s_i + t_{i,i+1} + t_{i+1,j}
+    \end{equation*}
+    \item $e_i, l_i$: Janela de tempo da requisição $i$
+    \item $D^{\max}$: Distância máxima de autonomia
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Variáveis de Decisão}
+\begin{itemize}
+    \item $x_{ijvk} \in \{0,1\}$: Ônibus $k$ viaja da requisição $i$ para $j$ na viagem $v$
+    \item $B_{ivk} \geq 0$: Instante de início do serviço na requisição $i$ pelo ônibus $k$ na viagem $v$
+    \item $y_{vk} \in \{0,1\}$: Ônibus $k$ realiza a viagem $v$
+\end{itemize}
+
+\vspace{0.8cm}
+\begin{block}{Função Objetivo}
+Minimizar a distância total percorrida:
+$$\min Z = \sum_{k \in K} \sum_{v \in V} \sum_{i \in N_0} \sum_{\substack{j \in N_0\\i \neq j}} c_{ij} x_{ijvk}$$
+\end{block}
+\end{frame}
+
+% --- SEÇÃO 3: RESTRIÇÕES ---
+\section{Restrições do Modelo}
+
+\begin{frame}
+\frametitle{Restrições de Atendimento}
+\begin{block}{Atendimento das Requisições}
+Cada requisição deve ser realizada exatamente uma vez:
+$$\sum_{k \in K} \sum_{v \in V} \sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} = 1, \quad \forall j \in N$$
+\end{block}
+
+\begin{block}{Conservação de Fluxo}
+O fluxo é conservado em cada nó:
+$$\sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} - \sum_{\substack{i \in N_0,\\i \neq j}} x_{jivk} = 0, \quad \forall j \in N, \forall v \in V, \forall k \in K$$
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Restrições de Viagem}
+\begin{block}{Início e Fim de Cada Viagem}
+Cada viagem deve começar e terminar no depósito:
+\begin{align}
+\sum_{j \in N} x_{0jvk} &= y_{vk} \quad \forall k \in K, \forall v \in V \\
+\sum_{i \in N} x_{i0vk} &= y_{vk} \quad \forall k \in K, \forall v \in V
+\end{align}
+\end{block}
+
+\begin{block}{Sequência de Viagens}
+Viagem $v$ só pode ser usada se $v-1$ também for:
+$$y_{vk} \leq y_{v-1,k} \quad \forall k \in K, \forall v \in V, v > 1$$
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Restrições Temporais}
+\begin{block}{Janela de Tempo da Coleta}
+$$e_i \sum_{j \in N_0} x_{jivk} \leq B_{ivk} \leq l_i \sum_{j \in N_0} x_{jivk}, \quad \forall i \in N, \forall v \in V, \forall k \in K$$
+\end{block}
+
+\begin{block}{Sequência Temporal (Intra-viagem)}
+$$B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \leq B_{jvk}$$
+$$\forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K$$
+\end{block}
+
+\begin{block}{Sequência Temporal (Inter-viagem)}
+$$B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \leq B_{ivk}$$
+$$\forall i \in N, \forall v \in V, v > 1, \forall k \in K$$
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Restrições de Autonomia}
+\begin{block}{Limite de Distância por Viagem}
+A distância acumulada em uma viagem não pode exceder o limite máximo:
+$$\sum_{i \in N_0} \sum_{\substack{j \in N_0,\\i \neq j}} D_{ij} x_{ijvk} \leq D^{\max}, \quad \forall k \in K, \forall v \in V$$
+\end{block}
+
+\begin{block}{Domínio das Variáveis}
+\begin{align}
+x_{ijvk} &\in \{0, 1\}, \quad \forall i,j \in N_0, \forall v \in V, k \in K \\
+y_{vk} &\in \{0, 1\}, \quad \forall v \in V, k \in K \\
+B_{ivk} &\geq 0, \quad \forall i \in N, v \in V, k \in K
+\end{align}
+\end{block}
+\end{frame}
+
+% --- SEÇÃO 4: FUNDAMENTAÇÃO TEÓRICA ---
+\section{Fundamentação Teórica}
+
+\begin{frame}
+\frametitle{Principais Referências}
+\begin{block}{Literatura Base}
+\begin{itemize}
+    \item \textbf{Savelsbergh \& Sol (1995)}: Fundamentos do problema geral de coleta e entrega
+    \item \textbf{Parragh et al. (2008)}: Survey abrangente sobre PDPTW
+    \item \textbf{Cordeau \& Laporte (2007)}: Modelos e algoritmos para DARP
+    \item \textbf{Cattaruzza et al. (2016)}: Múltiplas viagens com janelas de tempo
+    \item \textbf{Molenbruch et al. (2017)}: Tipologia e revisão para dial-a-ride
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{Contribuição}
+Adaptação e combinação de técnicas estabelecidas para o contexto específico 
+de embarque remoto em aeroportos
+\end{alertblock}
+\end{frame}
+
+% --- SEÇÃO 5: CARACTERÍSTICAS DISTINTIVAS ---
+\section{Características Distintivas}
+
+\begin{frame}
+\frametitle{Aspectos Únicos do Modelo}
+\begin{itemize}
+    \item \textbf{Reabastecimento obrigatório}: Ônibus devem retornar à garagem após cada viagem
+    \item \textbf{Pares acoplados}: Coleta e entrega da mesma requisição pelo mesmo ônibus
+    \item \textbf{Janelas de tempo}: Embarques/desembarques têm horários específicos
+    \item \textbf{Múltiplas viagens}: Mesmo ônibus pode fazer várias viagens
+    \item \textbf{Limite de autonomia}: Restrição de distância máxima por viagem
+    \item \textbf{Múltiplas requisições por voo}: Desmembramento baseado na capacidade
+\end{itemize}
+
+\vspace{0.5cm}
+\begin{alertblock}{Complexidade}
+Assim como o Problema de Roteamento de Veículos é NP-Completo, este problema também é NP-Completo devido à sua natureza combinatória e às restrições envolvidas.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Considerações Finais}
+\begin{block}{Outras Aplicações Potenciais}
+\begin{itemize}
+    \item Otimização de operações aeroportuárias
+    \item Sistemas de transporte público
+    \item Logística de distribuição urbana
+    \item Serviços de transporte sob demanda
+\end{itemize}
+\end{block}
+
+\begin{block}{Extensões Possíveis da Formulação}
+\begin{itemize}
+    \item Diferentes tipos de aeronaves (capacidades variadas)
+    \item Ônibus com capacidades distintas
+    \item Múltiplos depósitos de reabastecimento
+    \item Restrições de manutenção programada
+    \item Consideração de custos de combustível
+\end{itemize}
+\end{block}
+\end{frame}
+
+\end{document}

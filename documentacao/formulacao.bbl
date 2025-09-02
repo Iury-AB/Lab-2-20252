@@ -1,0 +1,30 @@
+\begin{thebibliography}{1}
+
+\bibitem{cattaruzza2016multi}
+Diego Cattaruzza, Nabil Absi, and Dominique Feillet.
+\newblock The multi-trip vehicle routing problem with time windows and release
+  dates.
+\newblock {\em Transportation Science}, 50(2):676--693, 2016.
+
+\bibitem{cordeau2007dial}
+Jean-Fran{\c{c}}ois Cordeau and Gilbert Laporte.
+\newblock The dial-a-ride problem: models and algorithms.
+\newblock {\em Annals of operations research}, 153(1):29--46, 2007.
+
+\bibitem{molenbruch2017typology}
+Yves Molenbruch, Kris Braekers, and An~Caris.
+\newblock Typology and literature review for dial-a-ride problems.
+\newblock {\em Annals of Operations Research}, 259(1):295--325, 2017.
+
+\bibitem{parragh2008survey}
+Sophie~N Parragh, Karl~F Doerner, and Richard~F Hartl.
+\newblock A survey on pickup and delivery problems: Part ii: Transportation
+  between pickup and delivery locations.
+\newblock {\em Journal f{\"u}r Betriebswirtschaft}, 58(2):81--117, 2008.
+
+\bibitem{savelsbergh1995general}
+Martin~WP Savelsbergh and Marc Sol.
+\newblock The general pickup and delivery problem.
+\newblock {\em Transportation science}, 29(1):17--29, 1995.
+
+\end{thebibliography}
