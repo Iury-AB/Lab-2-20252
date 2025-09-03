@@ -1,6 +1,0 @@
-\babel@toc {brazil}{}\relax 
-\beamer@sectionintoc {1}{Introdução}{3}{0}{1}
-\beamer@sectionintoc {2}{Modelo Matemático}{7}{0}{2}
-\beamer@sectionintoc {3}{Restrições do Modelo}{10}{0}{3}
-\beamer@sectionintoc {4}{Fundamentação Teórica}{14}{0}{4}
-\beamer@sectionintoc {5}{Características Distintivas}{15}{0}{5}
