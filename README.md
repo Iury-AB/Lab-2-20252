@@ -1,202 +1,226 @@
-# Problema de Otimização do Serviço de Embarque Remoto de Aeroporto
+# ELE634 - Problema de Embarque Remoto em Aeroportos
 
-Este projeto implementa a solução do Problema de Coleta e Entrega com Janelas de Tempo (PDPTW) para otimização do serviço de embarque remoto em aeroportos, utilizando o solver Gurobi.
+## 📋 Descrição do Projeto
 
-## Descrição do Problema
+Este repositório contém a implementação completa de algoritmos de otimização para resolver o **Problema de Embarque Remoto em Aeroportos**. O problema consiste em otimizar rotas de ônibus que transportam passageiros entre portões de embarque e aeronaves estacionadas em posições remotas, minimizando custos operacionais enquanto respeitam janelas de tempo e restrições operacionais.
 
-O problema consiste em otimizar as rotas de ônibus que transportam passageiros entre portões de embarque e aviões em um aeroporto. Cada voo é dividido em requisições baseadas na capacidade dos ônibus, e cada requisição possui:
+## 🎯 Objetivo
 
-- Ponto de coleta (portão de embarque)
-- Ponto de entrega (avião)
-- Janela de tempo específica
-- Restrições de autonomia dos ônibus
+Desenvolver e comparar diferentes abordagens algorítmicas para resolver um problema real de roteamento de veículos em aeroportos:
 
-## Arquivos do Projeto
+- **Método Exato**: Programação Linear Inteira Mista (MILP) usando Gurobi
+- **Metaheurísticas**: GRASP e VNS (Variable Neighborhood Search)
+- **Análise Comparativa**: Avaliação de desempenho entre as diferentes abordagens
 
-- `aeroporto_gurobi.py`: Implementação completa do modelo matemático
-- `exemplo_simples.py`: Exemplo simplificado para demonstração
-- `requirements.txt`: Dependências necessárias
-- `formulacao.tex`: Documentação matemática do modelo
-- `apresentacao.tex`: Apresentação em Beamer
+## 🏗️ Estrutura do Repositório
 
-## Instalação
-
-### 1. Instalar o Gurobi
-
-Primeiro, você precisa instalar o Gurobi Optimizer:
-
-```bash
-# Baixar do site oficial: https://www.gurobi.com/downloads/
-# Ou usar conda:
-conda install -c gurobi gurobi
-
-# Ou pip (requer licença):
-pip install gurobipy
+```
+📂 ele634_202502/
+├── 📄 README.md                   # Este arquivo
+├── 📄 requirements.txt            # Dependências Python
+├── 📄 dados.py                    # Estruturas de dados do problema
+├── 📄 exato.py                    # Algoritmo exato (MILP)
+├── 📄 solucao.py                  # Classe para representar soluções
+├── 📄 utils.py                    # Utilitários e visualizações
+├── 📄 gera_instancia.py           # Gerador de instâncias realísticas
+├── 📓 analise_instancia.ipynb     # Análise exploratória das instâncias
+├── 📓 resolucao_exata.ipynb       # Demonstração do método exato
+├── 📂 dados/                      # Instâncias do problema
+│   ├── pequena.json               # Instância pequena (5 voos, 19 requisições)
+│   ├── media.json                 # Instância média (10 voos)
+│   ├── grande.json                # Instância grande (20 voos)
+│   └── rush.json                  # Instância horário de pico
+├── 📂 metaheuristicas/            # Algoritmos metaheurísticos
+│   ├── grasp.ipynb                # Implementação GRASP
+│   └── vns.ipynb                  # Implementação VNS
+├── 📂 documentacao/               # Documentação técnica
+│   ├── formulacao.tex             # Formulação matemática (LaTeX)
+│   └── formulacao.pdf             # Formulação matemática (PDF)
+├── 📂 apresentacao/               # Material de apresentação
+│   ├── apresentacao.tex           # Slides (LaTeX)
+│   └── apresentacao.pdf           # Slides (PDF)
+└── 📂 env/                        # Ambiente virtual Python
 ```
 
-### 2. Licença do Gurobi
+## 🔧 Instalação e Configuração
 
-- **Licença Acadêmica**: Gratuita para uso acadêmico
-- **Licença Comercial**: Necessária para uso comercial
-- **Licença de Teste**: 30 dias gratuitos
+### Pré-requisitos
 
-Para obter uma licença acadêmica:
-1. Registre-se em https://www.gurobi.com/academia/
-2. Baixe e instale a licença seguindo as instruções
+- Python 3.8 ou superior
+- Gurobi Optimizer (licença acadêmica disponível)
+- Jupyter Notebook/Lab
 
-### 3. Instalar Dependências Python
+### Instalação
 
+1. **Clone o repositório:**
+```bash
+git clone https://github.com/andre-batista/ele634_202502.git
+cd ele634_202502
+```
+
+2. **Crie e ative um ambiente virtual:**
+```bash
+python -m venv env
+# Windows
+env\Scripts\activate
+# Linux/Mac
+source env/bin/activate
+```
+
+3. **Instale as dependências:**
 ```bash
 pip install -r requirements.txt
 ```
 
-## Uso
+4. **Configure o Gurobi:**
+   - Obtenha uma licença acadêmica em: https://www.gurobi.com/academia/
+   - Instale e configure conforme as instruções oficiais
 
-### Exemplo Simples
+## 🚀 Como Usar
 
-Execute o exemplo básico com 3 requisições e 2 ônibus:
-
+### 1. Análise de Instâncias
+Explore as características das instâncias disponíveis:
 ```bash
-python exemplo_simples.py
+jupyter notebook analise_instancia.ipynb
 ```
 
-### Implementação Completa
-
-Execute o modelo completo:
-
+### 2. Resolução Exata
+Execute o algoritmo MILP para obter soluções ótimas:
 ```bash
-python aeroporto_gurobi.py
+python exato.py
+# ou
+jupyter notebook resolucao_exata.ipynb
 ```
 
-## Parâmetros do Modelo
+### 3. Metaheurísticas
+Compare com soluções heurísticas:
+```bash
+jupyter notebook metaheuristicas/grasp.ipynb
+jupyter notebook metaheuristicas/vns.ipynb
+```
 
-### Entrada
-- `n_requisicoes`: Número de requisições
-- `n_onibus`: Número de ônibus disponíveis
-- `D_max`: Distância máxima de autonomia
-- `d[u,v]`: Matriz de distâncias entre pontos
-- `e[u], l[u]`: Janelas de tempo das requisições
+### 4. Gerar Novas Instâncias
+Crie instâncias personalizadas:
+```python
+from gera_instancia import gerar_instancia_aeroporto
 
-### Saída
-- Rotas otimizadas para cada ônibus
-- Custo total (distância percorrida)
-- Tempos de início das requisições
-- Estatísticas de utilização
+# Gerar instância com 15 voos e 4 ônibus
+instancia = gerar_instancia_aeroporto(
+    n_voos=15, 
+    n_onibus=4, 
+    duracao_operacao_horas=6
+)
+```
 
-## Modelo Matemático
+## 📊 Características do Problema
 
-### Variáveis de Decisão
-- `x[u,v,k]`: Binária - ônibus k vai de u para v
-- `B[u,k]`: Tempo de início do serviço na coleta u
-- `q[u,k]`: Distância acumulada pelo ônibus k
-- `p[u,k]`: Variável auxiliar para eliminação de sub-rotas
+### Parâmetros Principais
+- **Requisições (n)**: Viagens de ônibus necessárias para transportar passageiros
+- **Ônibus (K)**: Frota disponível para atender as requisições
+- **Viagens (r)**: Número máximo de viagens por ônibus
+- **Janelas de Tempo**: Horários específicos para atender cada requisição
+- **Distâncias**: Matriz de distâncias entre todos os pontos (garagem, portões, aeronaves)
+- **Autonomia**: Distância máxima que um ônibus pode percorrer por viagem
+
+### Restrições
+- ✅ Toda requisição deve ser atendida exatamente uma vez
+- ✅ Respeitar janelas de tempo das requisições
+- ✅ Não exceder capacidade de viagens por ônibus
+- ✅ Respeitar limite de autonomia por viagem
+- ✅ Conservação de fluxo (ônibus devem retornar à garagem)
 
 ### Função Objetivo
-Minimizar: Σ c[u,v] * x[u,v,k] (distância total percorrida)
+Minimizar o custo total de transporte, considerando:
+- Custos de deslocamento entre pontos
+- Penalizações por violações de restrições
+- Eficiência operacional da frota
 
-### Principais Restrições
-1. Cada requisição atendida exatamente uma vez
-2. Conservação de fluxo
-3. Rastreamento da distância acumulada
-4. Restrições de autonomia
-5. Janelas de tempo
-6. Eliminação de sub-rotas (MTZ)
+## 📈 Resultados e Análises
 
-## Exemplo de Execução
+### Instâncias Disponíveis
 
-```python
-from aeroporto_gurobi import AeroportoEmbarcador
+| Instância | Voos | Requisições | Ônibus | Duração | Complexidade |
+|-----------|------|-------------|--------|---------|--------------|
+| Pequena   | 5    | 19          | 3      | 4h      | Baixa        |
+| Média     | 10   | ~40         | 5      | 6h      | Moderada     |
+| Grande    | 20   | ~80         | 8      | 8h      | Alta         |
+| Rush      | 15   | ~60         | 6      | 4h      | Muito Alta   |
 
-# Criar problema com 6 requisições e 3 ônibus
-problema = AeroportoEmbarcador(n_requisicoes=6, n_onibus=3)
+### Métricas de Desempenho
+- **Tempo de Execução**: Comparação entre métodos
+- **Qualidade da Solução**: Gap de otimalidade
+- **Eficiência Operacional**: Utilização da frota
+- **Robustez**: Sensibilidade a parâmetros
 
-# Gerar dados de exemplo
-problema.gerar_dados_exemplo()
+## 🔬 Metodologia
 
-# Criar e resolver modelo
-problema.criar_modelo()
-problema.resolver(tempo_limite=300)
+### 1. Formulação Matemática
+O problema é modelado como um **Vehicle Routing Problem with Time Windows (VRPTW)** com características específicas:
 
-# Salvar resultados
-problema.salvar_resultados("resultados.csv")
+**Variáveis de Decisão:**
+- `x[i,j,v,k]`: Binária, 1 se o ônibus k na viagem v vai da requisição i para j
+- `y[v,k]`: Binária, 1 se o ônibus k realiza a viagem v
+- `B[i,v,k]`: Tempo de chegada na requisição i pelo ônibus k na viagem v
+
+**Função Objetivo:**
+```
+min Σ Σ Σ Σ c[i,j] * x[i,j,v,k]
+    i j v k
 ```
 
-## Configurações do Solver
+### 2. Métodos de Resolução
 
-- **Tempo limite**: 300 segundos (padrão)
-- **Gap de otimalidade**: 1%
-- **Método**: Branch-and-bound com cortes automáticos
+#### Método Exato (MILP)
+- **Solver**: Gurobi Optimizer
+- **Vantagens**: Solução ótima garantida
+- **Limitações**: Tempo exponencial para instâncias grandes
 
-## Resultados
+#### GRASP (Greedy Randomized Adaptive Search)
+- **Fase Construtiva**: Construção gulosa randomizada
+- **Busca Local**: Melhoramento iterativo
+- **Vantagens**: Boa qualidade em tempo razoável
 
-O programa gera:
+#### VNS (Variable Neighborhood Search)
+- **Múltiplas Vizinhanças**: Diferentes operadores de movimento
+- **Busca Sistemática**: Exploração estruturada do espaço
+- **Vantagens**: Escape de ótimos locais
 
-1. **Saída no console**: Rotas, custos, estatísticas
-2. **Arquivo CSV**: Resultados detalhados para análise
-3. **Métricas de performance**: Tempo de solução, gap de otimalidade
+## 📚 Documentação Técnica
 
-### Exemplo de Saída
+- **Formulação Matemática**: `documentacao/formulacao.pdf`
+- **Apresentação**: `apresentacao/apresentacao.pdf`
+- **Código Comentado**: Todos os módulos possuem documentação detalhada
+- **Notebooks Explicativos**: Análises passo-a-passo com visualizações
 
-```
-RESULTADOS DA OTIMIZAÇÃO
-=======================================
-Valor da função objetivo: 145.67
-Gap de otimalidade: 0.50%
+## 👥 Contribuições
 
-ROTAS DOS ÔNIBUS:
-Ônibus 1: 0 -> 1 -> 3 -> 0
-  Distância total: 67.34
-  Tempos de início: R1:5.0, R3:18.5
+Este projeto foi desenvolvido como parte da disciplina ELE634 - Otimização. Contribuições são bem-vindas através de:
 
-Ônibus 2: 0 -> 2 -> 4 -> 0
-  Distância total: 78.33
-  Tempos de início: R2:10.0, R4:25.0
+1. Fork do repositório
+2. Criação de branch para nova funcionalidade
+3. Commit das alterações
+4. Pull request com descrição detalhada
 
-ESTATÍSTICAS GERAIS:
-Distância total percorrida: 145.67
-Ônibus utilizados: 2/3
-Taxa de utilização: 66.7%
-```
+## 📄 Licença
 
-## Limitações e Extensões
+Este projeto é desenvolvido para fins acadêmicos. O uso do código é livre para pesquisa e educação.
 
-### Limitações Atuais
-- Não considera diferentes tipos de ônibus
-- Janelas de tempo fixas
-- Capacidade uniforme dos ônibus
+## 📞 Contato
 
-### Extensões Possíveis
-- Ônibus com capacidades diferentes
-- Múltiplos depósitos
-- Restrições de manutenção
-- Otimização multi-objetivo
-- Incertezas nos tempos de viagem
+**Autor**: André Batista  
+**Disciplina**: ELE634 - Otimização  
+**Instituição**: [Sua Instituição]  
+**Data**: Setembro 2025
 
-## Troubleshooting
+---
 
-### Problema: "gurobipy not found"
-**Solução**: Instale o Gurobi e configure a licença
+## 🔍 Links Úteis
 
-### Problema: "Model is infeasible"
-**Soluções**:
-- Verificar se D_max é suficiente
-- Relaxar janelas de tempo
-- Aumentar número de ônibus
+- [Gurobi Academic License](https://www.gurobi.com/academia/)
+- [Jupyter Documentation](https://jupyter.org/documentation)
+- [Numpy Documentation](https://numpy.org/doc/)
+- [Matplotlib Gallery](https://matplotlib.org/stable/gallery/index.html)
 
-### Problema: Tempo de execução muito alto
-**Soluções**:
-- Reduzir número de requisições
-- Ajustar parâmetros do solver
-- Usar heurísticas iniciais
+---
 
-## Referências
-
-1. Formulação matemática completa em `formulacao.tex`
-2. Apresentação do problema em `apresentacao.tex`
-3. Documentação do Gurobi: https://www.gurobi.com/documentation/
-
-## Autor
-
-André Costa Batista
-ELE634 - Laboratório de Sistemas II
-Universidade Federal de Minas Gerais
+**Nota**: Este README é um documento vivo e será atualizado conforme o projeto evolui. Para dúvidas específicas sobre implementação, consulte os notebooks explicativos ou a documentação inline do código.

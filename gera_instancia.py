@@ -66,7 +66,23 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
         total_requisicoes += n_requisicoes_voo
     
     n = total_requisicoes
+    
+    # Calcular número máximo de viagens por ônibus baseado nos parâmetros
+    # Considera: requisições totais, ônibus disponíveis, duração da operação e eficiência
+    requisicoes_por_onibus = math.ceil(n / n_onibus)
+    
+    # Tempo médio por viagem (incluindo ida, serviço e volta): ~45-60 min
+    tempo_medio_viagem = 50  # minutos
+    viagens_possiveis_por_tempo = duracao_operacao_horas * 60 // tempo_medio_viagem
+    
+    # Usar o menor entre a necessidade e a capacidade temporal, com margem de segurança
+    max_viagens_por_onibus = min(
+        max(3, requisicoes_por_onibus),  # Mínimo 3 viagens
+        min(8, viagens_possiveis_por_tempo)  # Máximo 8 viagens ou limite temporal
+    )
+    
     print(f"Total de requisições geradas: {n}")
+    print(f"Máximo de viagens por ônibus: {max_viagens_por_onibus}")
     
     # 2. Gerar layout do aeroporto (coordenadas dos pontos)
     # Garagem (ponto 0) no centro
@@ -192,6 +208,7 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
         },
         "numeroRequisicoes": n,
         "numeroOnibus": n_onibus,
+        "numeroMaximoViagens": max_viagens_por_onibus,
         "distanciaRequisicoes": D.tolist(),
         "distanciaPontos": d.tolist(),
         "distanciaMaxima": float(Dmax),
@@ -248,6 +265,8 @@ def gerar_instancias_variadas():
         print(f"Instância salva em: {nome_arquivo}")
         print(f"Requisições: {dados['numeroRequisicoes']}")
         print(f"Ônibus: {dados['numeroOnibus']}")
+        print(f"Máximo viagens por ônibus: {dados['numeroMaximoViagens']}")
+        print(f"Capacidade total: {dados['numeroOnibus'] * dados['numeroMaximoViagens']} viagens")
         print(f"Distância máxima por viagem: {dados['distanciaMaxima']:.2f}m")
 
 if __name__ == "__main__":

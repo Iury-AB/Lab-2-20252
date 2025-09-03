@@ -1,7 +1,7 @@
 {
   "metadados": {
     "descricao": "Instância realística de embarque remoto de aeroporto",
-    "data_geracao": "2025-09-02T20:38:25.702383",
+    "data_geracao": "2025-09-03T11:09:25.053930",
     "n_voos": 20,
     "capacidade_onibus": 50,
     "duracao_operacao_horas": 6,
@@ -9,6 +9,7 @@
   },
   "numeroRequisicoes": 85,
   "numeroOnibus": 8,
+  "numeroMaximoViagens": 7,
   "distanciaRequisicoes": [
     [
       0.0,
