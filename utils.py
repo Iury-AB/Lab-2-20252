@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-Analisador e Visualizador de Instâncias do Problema de Embarque Remoto
-
-Este script analisa e visualiza os dados das instâncias geradas para o problema
-de otimização do serviço de embarque remoto de aeroporto.
-"""
-
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -76,7 +68,7 @@ def analisar_instancia(dados, nome_instancia):
         'tempo_servico_medio': s[1:].mean()
     }
 
-def visualizar_layout_aeroporto(dados, nome_instancia):
+def visualizar_layout_aeroporto(dados, nome_instancia, salvar=False):
     """Visualiza o layout do aeroporto com as posições dos pontos."""
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     
@@ -115,10 +107,11 @@ def visualizar_layout_aeroporto(dados, nome_instancia):
     ax.axis('equal')
     
     plt.tight_layout()
-    plt.savefig(f'layout_aeroporto_{nome_instancia}.png', dpi=300, bbox_inches='tight')
+    if salvar:
+        plt.savefig(f'layout_aeroporto_{nome_instancia}.png', dpi=300, bbox_inches='tight')
     plt.show()
 
-def visualizar_janelas_tempo(dados, nome_instancia):
+def visualizar_janelas_tempo(dados, nome_instancia, salvar=False):
     """Visualiza as janelas de tempo das requisições."""
     e = np.array(dados['inicioJanela'])
     l = np.array(dados['fimJanela'])
@@ -146,7 +139,8 @@ def visualizar_janelas_tempo(dados, nome_instancia):
     ax2.set_xlabel('Tempo (horas)')
     
     plt.tight_layout()
-    plt.savefig(f'janelas_tempo_{nome_instancia}.png', dpi=300, bbox_inches='tight')
+    if salvar:
+        plt.savefig(f'janelas_tempo_{nome_instancia}.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 def gerar_relatorio_comparativo(todas_analises):
@@ -205,35 +199,3 @@ def gerar_relatorio_comparativo(todas_analises):
     plt.tight_layout()
     plt.savefig('relatorio_comparativo_instancias.png', dpi=300, bbox_inches='tight')
     plt.show()
-
-def main():
-    """Função principal do analisador."""
-    instancias = ['pequena', 'media', 'grande', 'rush']
-    todas_analises = []
-    
-    print("ANALISADOR DE INSTÂNCIAS - EMBARQUE REMOTO DE AEROPORTO")
-    print("="*60)
-    
-    for nome in instancias:
-        arquivo = f'instancia_aeroporto_{nome}.json'
-        try:
-            dados = carregar_instancia(arquivo)
-            analise = analisar_instancia(dados, nome)
-            todas_analises.append(analise)
-            
-            # Gerar visualizações para instância média (representativa)
-            if nome == 'media':
-                print(f"\nGerando visualizações para instância {nome}...")
-                visualizar_layout_aeroporto(dados, nome)
-                visualizar_janelas_tempo(dados, nome)
-                
-        except FileNotFoundError:
-            print(f"Arquivo {arquivo} não encontrado!")
-    
-    if todas_analises:
-        gerar_relatorio_comparativo(todas_analises)
-    
-    print("\nAnálise concluída! Arquivos de visualização salvos.")
-
-if __name__ == "__main__":
-    main()

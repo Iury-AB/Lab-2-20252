@@ -17,7 +17,8 @@ from datetime import datetime, timedelta
 import math
 
 def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5, 
-                            duracao_operacao_horas=8, seed=42):
+                            duracao_operacao_horas=8, seed=42, n_portoes=10,
+                            n_posicoes_aeronaves=15):
     """
     Gera uma instância realística do problema de embarque remoto de aeroporto.
     
@@ -27,6 +28,8 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     - n_onibus: número de ônibus disponíveis
     - duracao_operacao_horas: duração total da operação em horas
     - seed: semente para reprodutibilidade
+    - n_portoes: número de portões de embarque
+    - n_posicoes_aeronaves: número de posições de aeronaves
     """
     
     random.seed(seed)
@@ -71,14 +74,14 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     
     # Portões de embarque (lado oeste)
     portoes = []
-    for i in range(10):  # 10 portões
+    for i in range(n_portoes):
         x = random.uniform(-800, -200)  # metros
         y = random.uniform(-500, 500)
         portoes.append((x, y))
     
     # Posições de aeronaves (lado leste, mais distantes)
     posicoes_aeronaves = []
-    for i in range(15):  # 15 posições de aeronaves
+    for i in range(n_posicoes_aeronaves):
         x = random.uniform(500, 1500)  # metros
         y = random.uniform(-800, 800)
         posicoes_aeronaves.append((x, y))
