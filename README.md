@@ -197,10 +197,9 @@ Este projeto foi desenvolvido como parte da disciplina ELE634 - Laboratório de 
 Este projeto é desenvolvido para fins acadêmicos. O uso do código é livre para pesquisa e educação.
 
 ## 📞 Contato
-
-**Autor**: André Costa Batista
-**Disciplina**: ELE634 - Laboratório de Sistemas II
-**Instituição**: Universidade Federal de Minas Gerais
+**Autor**: André Costa Batista  
+**Disciplina**: ELE634 - Laboratório de Sistemas II  
+**Instituição**: Universidade Federal de Minas Gerais  
 **Semestre**: 2025/2
 
 ---
