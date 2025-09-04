@@ -266,16 +266,16 @@ class Solucao:
             dados_json["onibus"][str(k)] = {}
             
             for v in self.rota[k].keys():
-            if self.rota[k][v]:  # Apenas viagens não vazias
-                dados_json["onibus"][str(k)][f"viagem_{v}"] = {
-                "rota": self.rota[k][v],
-                "arcos": list(self.arcos[k][v]) if k in self.arcos and v in self.arcos[k] else [],
-                "chegada": self.chegada[k][v] if k in self.chegada and v in self.chegada[k] else []
-                }
+                if self.rota[k][v]:  # Apenas viagens não vazias
+                    dados_json["onibus"][str(k)][f"viagem_{v}"] = {
+                    "rota": self.rota[k][v],
+                    "arcos": list(self.arcos[k][v]) if k in self.arcos and v in self.arcos[k] else [],
+                    "chegada": self.chegada[k][v] if k in self.chegada and v in self.chegada[k] else []
+                    }
         
         try:
             with open(nome_arquivo, 'w', encoding='utf-8') as f:
-            json.dump(dados_json, f, indent=2, ensure_ascii=False)
+                json.dump(dados_json, f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Erro ao salvar a solução em JSON: {e}")
 
