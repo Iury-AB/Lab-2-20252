@@ -26,6 +26,7 @@ Data: Setembro 2025
 import gurobipy as gp
 from dados import Dados
 from typing import Dict, List, Optional, Any
+import json
 
 class Solucao:
     """
@@ -217,6 +218,66 @@ class Solucao:
 
         # Armazenar valor da função objetivo (custo total da solução)
         self.fx = modelo.ObjVal
+
+    def salvar(self, nome_arquivo: str) -> None:
+        """
+        Salva a solução em formato JSON para facilitar a análise e integração.
+        
+        Este método serializa todos os dados da solução (rotas, arcos, 
+        tempos de chegada e função objetivo) em formato JSON estruturado,
+        permitindo fácil carregamento e processamento posterior.
+        
+        Estrutura do JSON:
+        {
+            "fx": valor_funcao_objetivo,
+            "onibus": {
+            "k": {
+                "viagem_v": {
+                "rota": [0, req1, req2, ..., 0],
+                "arcos": [[i, j], [j, k], ...],
+                "chegada": [t0, t1, t2, ...]
+                }
+            }
+            }
+        }
+        
+        Args:
+            nome_arquivo (str): Caminho do arquivo JSON onde a solução será salva
+            
+        Returns:
+            None: Escreve diretamente no arquivo especificado
+            
+        Raises:
+            IOError: Se ocorrer um erro ao abrir ou escrever no arquivo
+            
+        Example:
+            >>> solucao.salvar("resultado.json")
+            # A solução é salva em formato JSON estruturado
+        """
+        
+        # Estruturar dados para serialização JSON
+        dados_json = {
+            "fx": self.fx,
+            "onibus": {}
+        }
+        
+        # Organizar dados por ônibus
+        for k in self.rota.keys():
+            dados_json["onibus"][str(k)] = {}
+            
+            for v in self.rota[k].keys():
+            if self.rota[k][v]:  # Apenas viagens não vazias
+                dados_json["onibus"][str(k)][f"viagem_{v}"] = {
+                "rota": self.rota[k][v],
+                "arcos": list(self.arcos[k][v]) if k in self.arcos and v in self.arcos[k] else [],
+                "chegada": self.chegada[k][v] if k in self.chegada and v in self.chegada[k] else []
+                }
+        
+        try:
+            with open(nome_arquivo, 'w', encoding='utf-8') as f:
+            json.dump(dados_json, f, indent=2, ensure_ascii=False)
+        except IOError as e:
+            print(f"Erro ao salvar a solução em JSON: {e}")
 
     def __str__(self) -> str:
         """
