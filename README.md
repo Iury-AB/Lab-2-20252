@@ -2,15 +2,16 @@
 
 ## 📋 Descrição do Projeto
 
-Este repositório contém a implementação completa de algoritmos de otimização para resolver o **Problema de Embarque Remoto em Aeroportos**. O problema consiste em otimizar rotas de ônibus que transportam passageiros entre portões de embarque e aeronaves estacionadas em posições remotas, minimizando custos operacionais enquanto respeitam janelas de tempo e restrições operacionais.
+Este repositório contém a modelagem do **Problema de Embarque Remoto em Aeroportos** a ser abordado pela turma 2025/02 da disciplina de Laboratório de Sistemas II do curso de graduação em Engenharia de Sistemas da UFMG. O problema consiste em otimizar rotas de ônibus que transportam passageiros entre portões de embarque e aeronaves estacionadas em posições remotas, minimizando custos operacionais enquanto respeitam janelas de tempo e restrições operacionais.
 
-## 🎯 Objetivo
+## 🎯 Objetivo dos grupos
 
-Desenvolver e comparar diferentes abordagens algorítmicas para resolver um problema real de roteamento de veículos em aeroportos:
+Desenvolver abordagens algorítmicas para resolver um problema real de roteamento de veículos em aeroportos. Para dar suporte a isso, este repositório conta com algumas ferramentas de apoio:
 
+- **Documentação**: Definição formal do problema de otimização
+- **Dados**: Instâncias do problema para serem consideradas pelos algoritmos
 - **Método Exato**: Programação Linear Inteira Mista (MILP) usando Gurobi
-- **Metaheurísticas**: GRASP e VNS (Variable Neighborhood Search)
-- **Análise Comparativa**: Avaliação de desempenho entre as diferentes abordagens
+- **Metaheurísticas**: Exemplo de implementação de algoritmos como GRASP, VNS e GA
 
 ## 🏗️ Estrutura do Repositório
 
@@ -31,8 +32,12 @@ Desenvolver e comparar diferentes abordagens algorítmicas para resolver um prob
 │   ├── grande.json                # Instância grande (20 voos)
 │   └── rush.json                  # Instância horário de pico
 ├── 📂 metaheuristicas/            # Algoritmos metaheurísticos
+│   ├── ga.ipynb                   # Implementação GA
 │   ├── grasp.ipynb                # Implementação GRASP
 │   └── vns.ipynb                  # Implementação VNS
+├────── 📂 apresentacao/           # Material de apresentação
+│       ├── apresentacao.tex       # Slides (LaTeX)
+│       └── apresentacao.pdf       # Slides (PDF)
 ├── 📂 documentacao/               # Documentação técnica
 │   ├── formulacao.tex             # Formulação matemática (LaTeX)
 │   └── formulacao.pdf             # Formulação matemática (PDF)
@@ -54,8 +59,8 @@ Desenvolver e comparar diferentes abordagens algorítmicas para resolver um prob
 
 1. **Clone o repositório:**
 ```bash
-git clone https://github.com/andre-batista/ele634_202502.git
-cd ele634_202502
+git clone https://github.com/andre-batista/ele634_20252.git
+cd ele634_20252
 ```
 
 2. **Crie e ative um ambiente virtual:**
@@ -93,23 +98,11 @@ jupyter notebook resolucao_exata.ipynb
 ```
 
 ### 3. Metaheurísticas
-Compare com soluções heurísticas:
+Veja exemplos de implementação de metaheurísticas (considerando o problema do caixeiro viajante):
 ```bash
+jupyter notebook metaheuristicas/ga.ipynb
 jupyter notebook metaheuristicas/grasp.ipynb
 jupyter notebook metaheuristicas/vns.ipynb
-```
-
-### 4. Gerar Novas Instâncias
-Crie instâncias personalizadas:
-```python
-from gera_instancia import gerar_instancia_aeroporto
-
-# Gerar instância com 15 voos e 4 ônibus
-instancia = gerar_instancia_aeroporto(
-    n_voos=15, 
-    n_onibus=4, 
-    duracao_operacao_horas=6
-)
 ```
 
 ## 📊 Características do Problema
@@ -133,7 +126,6 @@ instancia = gerar_instancia_aeroporto(
 Minimizar o custo total de transporte, considerando:
 - Custos de deslocamento entre pontos
 - Penalizações por violações de restrições
-- Eficiência operacional da frota
 
 ## 📈 Resultados e Análises
 
@@ -147,10 +139,7 @@ Minimizar o custo total de transporte, considerando:
 | Rush      | 15   | ~60         | 6      | 4h      | Muito Alta   |
 
 ### Métricas de Desempenho
-- **Tempo de Execução**: Comparação entre métodos
-- **Qualidade da Solução**: Gap de otimalidade
-- **Eficiência Operacional**: Utilização da frota
-- **Robustez**: Sensibilidade a parâmetros
+- **Número de avaliações**: Quantas vezes a função objetivo foi chamada.
 
 ## 🔬 Metodologia
 
@@ -173,7 +162,7 @@ min Σ Σ Σ Σ c[i,j] * x[i,j,v,k]
 #### Método Exato (MILP)
 - **Solver**: Gurobi Optimizer
 - **Vantagens**: Solução ótima garantida
-- **Limitações**: Tempo exponencial para instâncias grandes
+- **Limitações**: Tempo exponencial para instâncias médias e grandes
 
 #### GRASP (Greedy Randomized Adaptive Search)
 - **Fase Construtiva**: Construção gulosa randomizada
@@ -185,21 +174,23 @@ min Σ Σ Σ Σ c[i,j] * x[i,j,v,k]
 - **Busca Sistemática**: Exploração estruturada do espaço
 - **Vantagens**: Escape de ótimos locais
 
+#### GA (Genetic Algorithm)
+- **População**: Conjunto de soluções candidatas
+- **Seleção**: Escolha de indivíduos para reprodução
+- **Crossover**: Combinação de características dos pais
+- **Mutação**: Alterações aleatórias para diversidade
+- **Vantagens**: Exploração global eficiente do espaço de soluções
+
 ## 📚 Documentação Técnica
 
 - **Formulação Matemática**: `documentacao/formulacao.pdf`
 - **Apresentação**: `apresentacao/apresentacao.pdf`
-- **Código Comentado**: Todos os módulos possuem documentação detalhada
-- **Notebooks Explicativos**: Análises passo-a-passo com visualizações
+- **Código Comentado**: Todos os módulos possuem documentação
+- **Notebooks Explicativos**: Análises passo-a-passo com algumas visualizações
 
 ## 👥 Contribuições
 
-Este projeto foi desenvolvido como parte da disciplina ELE634 - Otimização. Contribuições são bem-vindas através de:
-
-1. Fork do repositório
-2. Criação de branch para nova funcionalidade
-3. Commit das alterações
-4. Pull request com descrição detalhada
+Este projeto foi desenvolvido como parte da disciplina ELE634 - Laboratório de Sistemas II. Um meio para utilizá-lo é criar um fork do repositório.
 
 ## 📄 Licença
 
@@ -207,10 +198,10 @@ Este projeto é desenvolvido para fins acadêmicos. O uso do código é livre pa
 
 ## 📞 Contato
 
-**Autor**: André Batista  
-**Disciplina**: ELE634 - Otimização  
-**Instituição**: [Sua Instituição]  
-**Data**: Setembro 2025
+**Autor**: André Costa Batista
+**Disciplina**: ELE634 - Laboratório de Sistemas II
+**Instituição**: Universidade Federal de Minas Gerais
+**Semestre**: 2025/2
 
 ---
 
