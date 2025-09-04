@@ -194,17 +194,15 @@ Thumbs.db
 resultados/
 saidas/
 outputs/
+
 # Keep specific important images and PDFs
-!janelas_tempo_media.png
-!layout_aeroporto_media.png
-!relatorio_comparativo_instancias.png
+!metaheuristicas/apresentacao/apresentacao.pdf
 !apresentacao/apresentacao.pdf
 !documentacao/formulacao.pdf
 *.png
 *.jpg
 *.jpeg
 *.gif
-*.pdf
 *.svg
 
 # Excel files (often used for results)

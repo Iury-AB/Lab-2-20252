@@ -1,0 +1,297 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+% Tema da apresentação
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% Informações do Título
+\title[Meta-Heurísticas]{Meta-heurísticas para o Problema do Caixeiro Viajante}
+\subtitle{VNS, GRASP e Algoritmo Genético}
+\author[André Batista]{André Costa Batista}
+\institute[ELE634]{ELE634 Laboratório de Sistemas II\\Escola de Engenharia\\Universidade Federal de Minas Gerais}
+\date{05 de setembro de 2025}
+
+% Configuração para slides automáticos de seção
+\AtBeginSection[]{
+    \begin{frame}
+        \vfill
+        \centering
+        \begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+            \usebeamerfont{title}\insertsectionhead\par%
+        \end{beamercolorbox}
+        \vfill
+    \end{frame}
+}
+
+\begin{document}
+
+% --- Slide de Título ---
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% --- Roteiro (Tabela de Conteúdo) ---
+\begin{frame}
+  \frametitle{Roteiro}
+  \framesubtitle{Tópicos da aula}
+  \tableofcontents
+\end{frame}
+
+% --- Seção 1: O Problema do Caixeiro Viajante ---
+\section{O Problema do Caixeiro Viajante (PCV)}
+
+\begin{frame}
+  \frametitle{O Problema do Caixeiro Viajante (PCV)}
+  \framesubtitle{Definição do Problema}
+  \begin{block}{Definição}
+    Dado um conjunto de cidades e as distâncias entre cada par delas, o objetivo é encontrar a rota mais curta possível que visita cada cidade exatamente uma vez e retorna à cidade de origem.
+  \end{block}
+  
+  \begin{itemize}
+    \item É um dos problemas de otimização combinatória mais famosos e estudados.
+    \item Pertence à classe de problemas \textbf{NP-difícil}, o que significa que encontrar a solução ótima exata para um grande número de cidades é computacionalmente inviável.
+    \item Por isso, usamos \textbf{meta-heurísticas} para encontrar soluções de alta qualidade em um tempo razoável.
+  \end{itemize}
+  
+\end{frame}
+
+% --- Seção 2: Variable Neighborhood Search (VNS) ---
+\section{Variable Neighborhood Search (VNS)}
+
+\begin{frame}
+  \frametitle{VNS}
+  \framesubtitle{Ideia Central}
+  
+  \begin{block}{Princípio Fundamental}
+    A ideia central do VNS é a exploração sistemática de diferentes \textbf{estruturas de vizinhança} para evitar ficar preso em ótimos locais.
+  \end{block}
+  
+  \begin{itemize}
+    \item Proposto por Mladenović e Hansen em 1997.
+    \item Baseia-se no fato de que um \textbf{ótimo local} em uma estrutura de vizinhança não é, necessariamente, um ótimo local em outra.
+    \item Ao mudar a vizinhança, a busca pode escapar de vales e explorar outras regiões do espaço de soluções.
+  \end{itemize}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{VNS}
+  \framesubtitle{Estratégia do Algoritmo}
+
+  \small
+  O VNS alterna sistematicamente entre três fases:
+  
+  \begin{block}{1. Perturbação (Shaking)}
+    A partir da solução atual ($s$), gera-se uma solução vizinha aleatória ($s'$) em uma \textbf{vizinhança $k$}. A busca começa com $k=1$.
+  \end{block}
+  
+  \begin{block}{2. Busca Local}
+    A solução vizinha ($s'$) é melhorada usando um método de \textbf{busca local}, resultando em uma nova solução ($s''$). Geralmente, a busca local usa uma vizinhança mais simples (ex: $k=1$).
+  \end{block}
+  
+  \begin{block}{3. Movimento (Move)}
+    \footnotesize
+    \begin{itemize}
+      \item Se a solução melhorada ($s''$) for melhor que a solução original ($s$), ela é aceita como a nova solução e a busca retorna para a primeira vizinhança ($k \leftarrow 1$).
+      \item Caso contrário, a busca avança para a próxima estrutura de vizinhança ($k \leftarrow k+1$).
+    \end{itemize}
+  \end{block}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{VNS}
+  \framesubtitle{Estruturas de Vizinhanças no PCV}
+  
+  Para o PCV, uma solução é uma rota (permutação de cidades). As vizinhanças são geradas por movimentos:
+  
+  \begin{itemize}
+    \item \textbf{Troca (Swap):}
+    \begin{itemize}
+      \item Troca a posição de duas cidades na rota.
+      \item \textit{Ex: [A, \textbf{B}, C, \textbf{D}, E] $\rightarrow$ [A, \textbf{D}, C, \textbf{B}, E]}
+    \end{itemize}
+    \vspace{0.5cm}
+    \item \textbf{Inserção (Insertion):}
+    \begin{itemize}
+      \item Remove uma cidade e a insere em outra posição.
+      \item \textit{Ex: [A, \textbf{B}, C, D, E] $\rightarrow$ [A, C, D, \textbf{B}, E]}
+    \end{itemize}
+    \vspace{0.5cm}
+    \item \textbf{Inversão (2-opt):}
+    \begin{itemize}
+      \item Inverte um segmento da rota entre duas cidades.
+      \item \textit{Ex: [A, \textbf{B, C, D}, E] $\rightarrow$ [A, \textbf{D, C, B}, E]}
+    \end{itemize}
+  \end{itemize}
+  
+\end{frame}
+
+
+% --- Seção 3: GRASP ---
+\section{Greedy Randomized Adaptive Search Procedure (GRASP)}
+
+\begin{frame}
+  \frametitle{GRASP}
+  \framesubtitle{Ideia Central}
+  
+  \begin{block}{Princípio Fundamental}
+    O GRASP é uma meta-heurística \textit{multi-start}, onde cada iteração consiste em duas fases: uma de \textbf{construção semi-gulosa} e outra de \textbf{busca local}.
+  \end{block}
+  
+  \begin{itemize}
+    \item O componente-chave é a \textbf{Lista Restrita de Candidatos (RCL)}.
+    \item A RCL armazena os melhores candidatos para o próximo passo da construção da solução.
+    \item Um elemento é \textbf{sorteado aleatoriamente} da RCL, introduzindo diversidade na busca.
+    \item O parâmetro $\alpha$ (0 a 1) controla o quão ``gulosa'' ou ``aleatória'' é a construção.
+  \end{itemize}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{GRASP}
+  \framesubtitle{Estratégia do Algoritmo}
+
+  \begin{block}{Fluxo de uma Iteração GRASP}
+    \begin{enumerate}
+      \item \textbf{Fase de Construção:}
+      \begin{itemize}
+        \item Começa com uma rota vazia ou com uma cidade aleatória.
+        \item Repetidamente, constrói a \textbf{RCL} com as cidades vizinhas de menor custo (mais próximas).
+        \item Sorteia uma cidade da RCL e a adiciona à rota.
+        \item Continua até que todas as cidades tenham sido visitadas.
+      \end{itemize}
+      \vspace{0.5cm}
+      \item \textbf{Fase de Busca Local:}
+      \begin{itemize}
+        \item A solução construída é usada como ponto de partida para uma busca local (ex: 2-opt).
+        \item O objetivo é refinar a solução, encontrando um ótimo local próximo.
+      \end{itemize}
+    \end{enumerate}
+  \end{block}
+  
+  O algoritmo repete essas duas fases por um número definido de iterações e retorna a \textbf{melhor solução} encontrada.
+  
+\end{frame}
+
+% --- Seção 4: Algoritmo Genético (AG) ---
+\section{Algoritmo Genético (AG)}
+
+\begin{frame}
+  \frametitle{AG}
+  \framesubtitle{Ideia Central}
+  
+  \begin{block}{Princípio Fundamental}
+    O Algoritmo Genético (AG) é uma técnica de busca inspirada na \textbf{teoria da evolução de Charles Darwin} e nos princípios da genética.
+  \end{block}
+  
+  \begin{itemize}
+    \item Opera sobre uma \textbf{população} de soluções candidatas.
+    \item Evolui essa população ao longo de \textbf{gerações} para encontrar soluções cada vez melhores.
+    \item Utiliza operadores inspirados na biologia: \textbf{Seleção}, \textbf{Cruzamento} (Crossover) e \textbf{Mutação}.
+  \end{itemize}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{AG}
+  \framesubtitle{Componentes Principaistle}
+  \footnotesize
+  \begin{itemize}
+    \item \textbf{Indivíduo (Cromossomo):} Representa uma solução. No PCV, é uma rota (ex: [3, 1, 4, 2, 0]).
+    \vspace{0.3cm}
+    \item \textbf{População:} Um conjunto de indivíduos (um conjunto de rotas).
+    \vspace{0.3cm}
+    \item \textbf{Função de Aptidão (Fitness):} Avalia a qualidade de um indivíduo. No PCV, é o inverso da distância total da rota. \textit{(Rotas mais curtas são mais aptas)}.
+    \vspace{0.3cm}
+    \item \textbf{Seleção:} Escolhe os indivíduos mais aptos (pais) para se reproduzirem. (Ex: Seleção por Torneio).
+    \vspace{0.3cm}
+    \item \textbf{Cruzamento (Crossover):} Combina o material genético de dois pais para criar filhos. (Ex: Crossover Ordenado).
+    \vspace{0.3cm}
+    \item \textbf{Mutação:} Introduz pequenas alterações aleatórias nos filhos para garantir diversidade. (Ex: Mutação de Troca).
+    \vspace{0.3cm}
+    \item \textbf{Elitismo:} Garante que os melhores indivíduos de uma geração passem para a próxima.
+  \end{itemize}
+  
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{AG}
+  \framesubtitle{Fluxo do Algoritmo}
+  
+  \begin{block}{Processo Evolutivo}
+    \begin{enumerate}
+      \item \textbf{Inicialização:} Cria-se uma população inicial de soluções aleatórias (rotas).
+      \vspace{0.4cm}
+      \item \textbf{Loop de Gerações:} Para cada geração:
+      \begin{itemize}
+        \item \textbf{Avaliação:} Calcula-se a aptidão de cada indivíduo.
+        \item \textbf{Seleção:} Pais são selecionados com base na aptidão.
+        \item \textbf{Reprodução:} Operadores de Crossover e Mutação são aplicados para gerar uma nova população de descendentes.
+        \item \textbf{Substituição:} A nova população substitui a antiga (frequentemente mantendo os melhores através do Elitismo).
+      \end{itemize}
+      \vspace{0.4cm}
+      \item \textbf{Término:} O algoritmo para após um número definido de gerações ou outro critério, retornando o melhor indivíduo encontrado.
+    \end{enumerate}
+  \end{block}
+  
+\end{frame}
+
+% --- Seção 5: Conclusão ---
+\section{Conclusão}
+
+\begin{frame}
+  \frametitle{Conclusão}
+  
+  \begin{itemize}
+    \item \textbf{VNS}, \textbf{GRASP} e \textbf{AG} são meta-heurísticas tradicionais para resolver problemas combinatórios como o PCV.
+    \item \textbf{VNS} foca na mudança sistemática de vizinhanças para escapar de ótimos locais.
+    \item \textbf{GRASP} equilibra a construção gulosa com aleatoriedade, refinando soluções com busca local em um processo multi-start.
+    \item \textbf{Algoritmo Genético} utiliza uma abordagem populacional, imitando a evolução natural para explorar o espaço de busca.
+    \item A escolha da melhor abordagem depende das características do problema, do tempo computacional disponível e da qualidade de solução desejada.
+    \item Outras meta-heurísticas, como \textbf{Simulated Annealing}, \textbf{Ant Colony Optimization} e \textbf{Particle Swarm Optimization}, também são opções viáveis para o PCV.
+  \end{itemize}
+  
+\end{frame}
+
+
+\begin{frame}{Referências Bibliográficas}
+    \begin{thebibliography}{99}
+
+    \bibitem{gaspar2012}
+    Gaspar-Cunha, A., Takahashi, R., \& Antunes, C. H. (2012). 
+    \textit{Manual de computação evolutiva e metaheurística}. 
+    Imprensa da Universidade de Coimbra/Coimbra University Press.
+
+    \bibitem{gendreau2010}
+    Gendreau, M., \& Potvin, J. Y. (Eds.). (2010). 
+    \textit{Handbook of Metaheuristics} (2nd ed.). 
+    Springer.
+
+    \bibitem{mladenovic1997}
+    Mladenović, N., \& Hansen, P. (1997). 
+    Variable neighborhood search. 
+    \textit{Computers \& Operations Research}, 24(11), 1097-1100.
+
+    \bibitem{feo1995}
+    Feo, T. A., \& Resende, M. G. (1995). 
+    Greedy randomized adaptive search procedures. 
+    \textit{Journal of Global Optimization}, 6(2), 109-133.
+
+    \bibitem{holland1975}
+    Holland, J. H. (1975). 
+    \textit{Adaptation in Natural and Artificial Systems}. 
+    University of Michigan Press.
+
+    \end{thebibliography}
+\end{frame}
+
+\end{document}
