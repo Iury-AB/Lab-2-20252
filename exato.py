@@ -107,7 +107,7 @@ class Exato:
 
         self._valida_dados(dados)
 
-        M = 1e10
+        M = 1e6
         LIMITE_TEMPO = self.limite_tempo
 
         modelo = gp.Model("Otimização do Serviço de Ônibus para Embarque Remoto")
@@ -137,6 +137,9 @@ class Exato:
 
         if LIMITE_TEMPO is not None:
             modelo.setParam(GRB.Param.TimeLimit, LIMITE_TEMPO)
+        
+        # Foca em encontrar soluções viáveis
+        modelo.setParam(GRB.Param.MIPFocus, 1)
 
         tic = time()
         modelo.optimize()
@@ -694,10 +697,10 @@ if __name__ == "__main__":
     from dados import carrega_dados_json
     
     # Carrega instância do problema
-    dados = carrega_dados_json('./dados/media.json')
+    dados = carrega_dados_json('./dados/pequena.json')
     
     # Configura solver com limite de tempo de 60 segundos
-    metodo = Exato(limite_tempo=3600)
+    metodo = Exato(limite_tempo=60)
     
     # Resolve o problema
     solucao = metodo.resolve(dados)
