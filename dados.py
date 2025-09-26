@@ -39,7 +39,7 @@ class Dados:
         s (np.ndarray): Vetor de tempos de serviço por requisição (n+1)
         e (np.ndarray): Vetor de início das janelas de tempo (n)
         l (np.ndarray): Vetor de fim das janelas de tempo (n)
-        Dmax (float): Distância máxima permitida por viagem (autonomia)
+        Tmax (float): Tempo máximo permitido por viagem
     
     Nota:
         - O índice 0 sempre representa a garagem
@@ -57,7 +57,7 @@ class Dados:
                  inicioJanela: Optional[np.ndarray] = None, 
                  fimJanela: Optional[np.ndarray] = None, 
                  numeroMaximoViagens: Optional[int] = None, 
-                 distanciaMaxima: Optional[float] = None) -> None:
+                 tempoMaximo: Optional[float] = None) -> None:
         """
         Inicializa uma instância da classe Dados.
         
@@ -71,7 +71,7 @@ class Dados:
             inicioJanela: Vetor (n) com início das janelas de tempo
             fimJanela: Vetor (n) com fim das janelas de tempo
             numeroMaximoViagens: Máximo de viagens que um ônibus pode fazer
-            distanciaMaxima: Distância máxima por viagem (restrição de autonomia)
+            tempoMaximo: Tempo máximo por viagem
         """
         # Dimensões do problema
         self.n = numeroRequisicoes          # Número de requisições
@@ -91,7 +91,7 @@ class Dados:
         self.l = fimJanela                 # Fim das janelas de tempo (n)
         
         # Restrições operacionais
-        self.Dmax = distanciaMaxima        # Distância máxima por viagem
+        self.Tmax = tempoMaximo            # Tempo máximo por viagem
     
     def __str__(self) -> str:
         """
@@ -110,13 +110,13 @@ Requisições: {self.n}
 Ônibus: {self.K}
 Máximo de viagens por ônibus: {self.r}
 Capacidade total de viagens: {capacidade_total if capacidade_total else 'N/A'}
-Distância máxima por viagem: {self.Dmax:.2f}m
+Tempo máximo por viagem: {self.Tmax:.1f} min
 Utilização estimada: {utilizacao_str}
 ==============================================="""
     
     def __repr__(self) -> str:
         """Representação técnica da instância."""
-        return f"Dados(n={self.n}, K={self.K}, r={self.r}, Dmax={self.Dmax})"
+        return f"Dados(n={self.n}, K={self.K}, r={self.r}, Tmax={self.Tmax})"
     
 
 def carrega_dados_json(arquivo: str) -> Dados:
@@ -175,5 +175,5 @@ def carrega_dados_json(arquivo: str) -> Dados:
         inicioJanela=np.array(dados_dict["inicioJanela"]),
         fimJanela=np.array(dados_dict["fimJanela"]),
         numeroMaximoViagens=dados_dict["numeroMaximoViagens"],
-        distanciaMaxima=dados_dict["distanciaMaxima"]
+        tempoMaximo=dados_dict.get("tempoMaximoViagem", dados_dict.get("distanciaMaxima", None))
     )

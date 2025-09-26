@@ -149,7 +149,7 @@ Para cada requisição $i \in N$, o ponto de coleta é $i$ e o ponto de entrega 
         T_{ij} =  s_i + t_{i,i+1} + t_{i+1,j}
     \end{equation*}
     \item $e_i, l_i$: Janela de tempo da requisição $i$
-    \item $D^{\max}$: Distância máxima de autonomia
+    \item $T^{\max}$: Tempo máximo permitido por viagem
 \end{itemize}
 \end{frame}
 
@@ -218,10 +218,12 @@ $$\forall i \in N, \forall v \in V, v > 1, \forall k \in K$$
 \end{frame}
 
 \begin{frame}
-\frametitle{Restrições de Autonomia}
-\begin{block}{Limite de Distância por Viagem}
-A distância acumulada em uma viagem não pode exceder o limite máximo:
-$$\sum_{i \in N_0} \sum_{\substack{j \in N_0,\\i \neq j}} D_{ij} x_{ijvk} \leq D^{\max}, \quad \forall k \in K, \forall v \in V$$
+\frametitle{Restrições de Tempo e Domínio}
+\begin{block}{Limite de Tempo por Viagem}
+O tempo acumulado em uma viagem não pode exceder o limite máximo. Como $B_{0vk}$ é o instante que o ônibus $k$ chega à garagem para concluir a viagem $v$, então, no caso da primeira viagem ($v=1$):
+$$ B_{0,1,k} \leq T^{\max} y_{1k}, \quad \forall k \in K$$
+No caso das outras viagens ($v>1$):
+$$ B_{0vk} - B_{0,v-1,k} \leq T^{\max} y_{vk}, \quad \forall k \in K, \forall v \in V, v > 1$$
 \end{block}
 
 \begin{block}{Domínio das Variáveis}

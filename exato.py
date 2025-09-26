@@ -26,6 +26,7 @@ Data: Setembro 2025
 import gurobipy as gp
 from gurobipy import GRB
 from time import time
+import numpy as np
 from dados import Dados
 from solucao import Solucao
 from typing import Optional
@@ -107,7 +108,20 @@ class Exato:
 
         self._valida_dados(dados)
 
-        M = 1e6
+        # Calcular M baseado nos dados da instância para evitar problemas numéricos
+        try:
+            max_tempo_janela = np.max(dados.l) if dados.l is not None else 1000
+            max_tempo_viagem = np.max(dados.T) if dados.T is not None else 1000
+            soma_tempos_servico = np.sum(dados.s) if dados.s is not None else 100
+            tempo_maximo_viagem = dados.Tmax if hasattr(dados, 'Tmax') and dados.Tmax is not None else 100
+            
+            M = max(max_tempo_janela, max_tempo_viagem, tempo_maximo_viagem) + soma_tempos_servico + 100
+        except:
+            M = 10000  # fallback seguro
+            
+        print(f"Valor de M calculado: {M:.2f}")
+        if hasattr(dados, 'Tmax') and dados.Tmax is not None:
+            print(f"Tempo máximo por viagem: {dados.Tmax:.2f}")
         LIMITE_TEMPO = self.limite_tempo
 
         modelo = gp.Model("Otimização do Serviço de Ônibus para Embarque Remoto")
@@ -127,7 +141,7 @@ class Exato:
 
         self._restricao_sequencia(modelo, K, V, y)
 
-        self._restricao_distancia(modelo, K, V, dados, x, N0)
+        self._restricao_tempo_maximo(modelo, K, V, dados, x, y, N0)
 
         self._restricao_janela(modelo, dados, K, V, N0, N, x, B)
 
@@ -181,7 +195,7 @@ class Exato:
             - T: Matriz de tempos de viagem
             - e: Vetor de início das janelas de tempo
             - l: Vetor de fim das janelas de tempo
-            - Dmax: Distância máxima permitida por viagem
+            - Tmax: Tempo máximo permitido por viagem
         """
 
         if dados is None:
@@ -204,8 +218,8 @@ class Exato:
             raise ValueError(f"Dados não possuem o campo obrigatório 'e' ou o campo é None")
         if not hasattr(dados, 'l') or dados.l is None:
             raise ValueError(f"Dados não possuem o campo obrigatório 'l' ou o campo é None")
-        if not hasattr(dados, 'Dmax') or dados.Dmax is None:
-            raise ValueError(f"Dados não possuem o campo obrigatório 'Dmax' ou o campo é None")
+        if not hasattr(dados, 'Tmax') or dados.Tmax is None:
+            raise ValueError(f"Dados não possuem o campo obrigatório 'Tmax' ou o campo é None")
 
     def _retorna_conjuntos(self, dados: Dados) -> tuple[list[int], list[int], list[int], list[int]]:
         """
@@ -500,48 +514,45 @@ class Exato:
                         name=f"sequencia_viagem_{v}_{k}"
                     )
 
-    def _restricao_distancia(self, modelo: gp.Model, K: list[int], V: list[int],
-                             dados: Dados, x: dict, N0: list[int]) -> None:
+    def _restricao_tempo_maximo(self, modelo: gp.Model, K: list[int], V: list[int],
+                                dados: Dados, x: dict, y: dict, N0: list[int]) -> None:
         """
-        Adiciona restrições de distância máxima por viagem.
+        Adiciona restrições de tempo máximo por viagem usando uma abordagem direta.
         
-        Garante que cada viagem respeite a limitação de distância máxima,
-        simulando restrições de autonomia dos ônibus ou políticas operacionais
-        que limitam a distância total que pode ser percorrida em uma única viagem.
+        Em vez de usar as variáveis de tempo B, esta implementação limita diretamente
+        o tempo total de cada viagem baseado nos arcos utilizados e tempos de serviço.
         
-        Restrição matemática:
-        Σ Σ D[i,j] * x[i,j,v,k] ≤ Dmax    ∀v ∈ V, ∀k ∈ K
-        i∈N0 j∈N0
-        (i≠j)
+        Restrição implementada:
+        Σ (T[i,j] + s[j]) * x[i,j,v,k] ≤ y[v,k] * Tmax    ∀v ∈ V, ∀k ∈ K
+        i,j∈N0
         
         Interpretação:
-        - Para cada viagem v de cada ônibus k
-        - Soma das distâncias de todos os arcos utilizados
-        - Deve ser menor ou igual à distância máxima permitida (Dmax)
-        - Previne viagens excessivamente longas
-        
-        Contexto prático:
-        - Autonomia limitada dos ônibus
-        - Tempo máximo de operação por viagem
-        - Políticas de manutenção preventiva
-        - Eficiência operacional
+        - Soma dos tempos de viagem e serviço em cada viagem
+        - Deve ser menor ou igual ao tempo máximo permitido
+        - Se uma viagem não é usada (y[v,k] = 0), a restrição é automaticamente satisfeita
         
         Args:
             modelo: Modelo Gurobi onde adicionar as restrições
             K: Lista de ônibus [1, ..., K]
             V: Lista de viagens [1, ..., r]
-            dados: Instância contendo matriz de distâncias D e limite Dmax
+            dados: Instância contendo limite de tempo Tmax
             x: Dicionário de variáveis binárias de roteamento
+            y: Dicionário de variáveis binárias de ativação de viagens
             N0: Lista incluindo garagem [0, 1, ..., n]
         """
         for k in K:
             for v in V:
+                # Tempo total da viagem = soma dos tempos de viagem + tempos de serviço
+                tempo_total = gp.quicksum(
+                    (dados.T[i, j] + dados.s[j]) * x[i, j, v, k] 
+                    for i in N0 
+                    for j in N0 
+                    if i != j
+                )
+                
                 modelo.addConstr(
-                    gp.quicksum(dados.D[i,j] * x[i, j, v, k]
-                                for i in N0
-                                for j in N0
-                                if i != j) <= dados.Dmax,
-                    name=f"distancia_maxima_{v}_{k}"
+                    tempo_total <= y[v, k] * dados.Tmax,
+                    name=f"tempo_maximo_viagem_{v}_{k}"
                 )
 
     def _restricao_janela(self, modelo: gp.Model, dados: Dados, K: list[int],

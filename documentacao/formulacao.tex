@@ -69,7 +69,7 @@ Os seguintes parâmetros são necessários para o modelo.
     \item $T_{ij}$: Tempo total de viagem do ônibus entre as requisições $i$ e $j$. Esse tempo é definido pelo trajeto entre o ponto de coleta e de entrega da requisição $i$ e o trajeto da entrega de $i$ para a coleta de $j$. Ou seja: $$T_{ij} = t_{i, i+n} + t_{i+n, j}$$
     \item $e_i$: Tempo de início da janela de tempo da coleta da requisição $i$. Ou seja, o limite inferior para o instante em que um ônibus deve chegar no ponto de coleta da requisição $i$.
     \item $l_i$: Tempo de fim da janela de tempo da coleta da requisição $i$. Ou seja, o limite superior para o instante em que um ônibus deve chegar no ponto de coleta da requisição $i$.
-    \item $D^{\max}$: Distância máxima total de autonomia para toda a frota. Em outras palavras, a distância máxima que cada ônibus pode percorrer antes de precisar retornar à garagem para reabastecimento.
+    \item $T^{\max}$: Tempo máximo permitido para uma viagem.
 \end{itemize}
 
 \subsection{Variáveis de Decisão}
@@ -120,7 +120,7 @@ e_i \sum_{j \in N_0} x_{jivk} \le B_{ivk} \le l_i \sum_{j \in N_0} x_{jivk}, \qu
 
 \paragraph{Sequência Temporal das Rotas (Intra-viagem):} Garante a consistência dos tempos de chegada entre requisições consecutivas de uma viagem $v$ ($M$ é uma constante grande).
 \begin{equation}
-B_{ik} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K
+B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K
 \end{equation}
 
 \noindent Para contemplar o caso da saída da garagem na primeira viagem ($v=1$):
@@ -134,9 +134,14 @@ B_{ik} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \i
     B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \le B_{ivk}, \quad \forall i \in N, \forall v \in V, v > 1, \forall k \in K
 \end{equation}
 
-\paragraph{Limite de Distância por Viagem:} Garante que a distância acumulada em uma viagem não exceda um limite máximo.
+\paragraph{Limite de Tempo por Viagem:} Garante que o tempo acumulado em uma viagem não exceda um limite máximo. No caso da primeira viagem, o tempo total é igual ao instante de chegada na garagem após completar todas as requisições da viagem. Ou seja:
 \begin{equation}
-\sum_{i \in N_0} \sum_{\substack{j \in N_0,\\i \neq j}} D_{ij} x_{ijvk} \le D^{\max}, \quad \forall k \in K, \forall v \in V
+B_{01k} \le y_{1k} T^{\max}, \quad \forall k \in K
+\end{equation}
+
+\noindent Para as viagens subsequentes, o tempo total de uma viagem é igual ao instante em que o ônibus $k$ retorna à garagem após completar todas as requisições da viagem menos o instante que o ônibus chega à garagem na viagem anterior. Ou seja:
+\begin{equation}
+B_{0vk} - B_{0,v-1,k} \le y_{vk} T^{\max}, \quad \forall k \in K, \forall v \in V, v > 1
 \end{equation}
 
 \paragraph{Domínio das Variáveis:}

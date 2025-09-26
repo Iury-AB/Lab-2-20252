@@ -192,9 +192,26 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     e = np.array([jt[0] for jt in janelas_tempo])
     l = np.array([jt[1] for jt in janelas_tempo])
     
-    # 10. Distância máxima por viagem (baseada na autonomia do ônibus)
-    # Considerando que um ônibus pode operar por 2-3 horas sem reabastecimento
-    Dmax = 2 * np.max(D) + 0.5 * np.sum(D) / n  # Aproximadamente 2-3 requisições por viagem
+    # 10. TEMPO MÁXIMO por viagem (em vez de distância máxima)
+    # Baseado na análise dos tempos de viagem e características operacionais
+    
+    # Calcular estatísticas dos tempos para definir limite realístico
+    tempo_medio_requisicao = np.mean([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
+    tempo_max_requisicao = np.max([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
+    
+    # Tempo máximo por viagem: mais conservador para evitar infeasibilidade
+    # Permite pelo menos 2-3 requisições por viagem com folga
+    Tmax = s[0] + 5.0 * tempo_medio_requisicao  # Mais conservador: ~5 requisições médias
+    
+    # Garantir que seja possível pelo menos 1 requisição com boa margem
+    Tmax = max(Tmax, s[0] + tempo_max_requisicao + 20)  # +20 min de margem
+    
+    # Usar um mínimo mais alto para ser realístico (mínimo 60 min, máximo 120 min)
+    Tmax = max(60.0, min(Tmax, 120.0))
+    
+    print(f"Tempo médio por requisição: {tempo_medio_requisicao:.1f} min")
+    print(f"Tempo máximo por requisição: {tempo_max_requisicao:.1f} min")
+    print(f"Tempo máximo por viagem definido: {Tmax:.1f} min")
     
     # 11. Estruturar dados para saída
     dados = {
@@ -204,14 +221,15 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
             "n_voos": n_voos,
             "capacidade_onibus": capacidade_onibus,
             "duracao_operacao_horas": duracao_operacao_horas,
-            "seed": seed
+            "seed": seed,
+            "restricao": "tempo_maximo_por_viagem"
         },
         "numeroRequisicoes": n,
         "numeroOnibus": n_onibus,
         "numeroMaximoViagens": max_viagens_por_onibus,
         "distanciaRequisicoes": D.tolist(),
         "distanciaPontos": d.tolist(),
-        "distanciaMaxima": float(Dmax),
+        "tempoMaximoViagem": float(Tmax),  # MUDANÇA: era distanciaMaxima
         "custo": c.tolist(),
         "tempoServico": s.tolist(),
         "tempoRequisicoes": T.tolist(),
@@ -225,6 +243,13 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
             "pontos_entrega": pontos_entrega,
             "portoes": portoes,
             "posicoes_aeronaves": posicoes_aeronaves
+        },
+        "estatisticas_tempo": {  # NOVO: estatísticas para análise
+            "tempo_medio_requisicao": float(tempo_medio_requisicao),
+            "tempo_max_requisicao": float(tempo_max_requisicao),
+            "tempo_preparacao_garagem": float(s[0]),
+            "velocidade_operacao": velocidade,
+            "requisicoes_estimadas_por_viagem": round(Tmax / tempo_medio_requisicao, 1)
         }
     }
     
@@ -267,7 +292,8 @@ def gerar_instancias_variadas():
         print(f"Ônibus: {dados['numeroOnibus']}")
         print(f"Máximo viagens por ônibus: {dados['numeroMaximoViagens']}")
         print(f"Capacidade total: {dados['numeroOnibus'] * dados['numeroMaximoViagens']} viagens")
-        print(f"Distância máxima por viagem: {dados['distanciaMaxima']:.2f}m")
+        print(f"Tempo máximo por viagem: {dados['tempoMaximoViagem']:.1f} min")
+        print(f"Requisições estimadas por viagem: {dados['estatisticas_tempo']['requisicoes_estimadas_por_viagem']}")
 
 if __name__ == "__main__":
     print("Gerador de Instâncias Realísticas - Embarque Remoto de Aeroporto")
@@ -285,3 +311,4 @@ if __name__ == "__main__":
     print("- Distâncias baseadas em coordenadas geográficas")
     print("- Capacidade de ônibus: 50 passageiros")
     print("- Velocidade de operação: 30 km/h")
+    print("- RESTRIÇÃO: Tempo máximo por viagem (em vez de distância)")
