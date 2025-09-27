@@ -1,7 +1,7 @@
 {
   "metadados": {
     "descricao": "Instância realística de embarque remoto de aeroporto",
-    "data_geracao": "2025-09-26T15:45:10.351175",
+    "data_geracao": "2025-09-26T22:07:30.363492",
     "n_voos": 15,
     "capacidade_onibus": 50,
     "duracao_operacao_horas": 8,
@@ -20622,7 +20622,7 @@
       0.0
     ]
   ],
-  "tempoMaximoViagem": 60.0,
+  "tempoMaximoViagem": 160.0,
   "custo": [
     [
       0.0,
@@ -46386,6 +46386,6 @@
     "tempo_max_requisicao": 11.913365155610805,
     "tempo_preparacao_garagem": 10.0,
     "velocidade_operacao": 500,
-    "requisicoes_estimadas_por_viagem": 6.8
+    "requisicoes_estimadas_por_viagem": 18.0
   }
 }

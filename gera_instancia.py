@@ -199,15 +199,11 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     tempo_medio_requisicao = np.mean([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
     tempo_max_requisicao = np.max([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
     
-    # Tempo máximo por viagem: mais conservador para evitar infeasibilidade
-    # Permite pelo menos 2-3 requisições por viagem com folga
-    Tmax = s[0] + 5.0 * tempo_medio_requisicao  # Mais conservador: ~5 requisições médias
+    # Tempo máximo por viagem: 3 turnos de operação
+    Tmax = duracao_operacao_horas * 60 / 3
     
-    # Garantir que seja possível pelo menos 1 requisição com boa margem
-    Tmax = max(Tmax, s[0] + tempo_max_requisicao + 20)  # +20 min de margem
-    
-    # Usar um mínimo mais alto para ser realístico (mínimo 60 min, máximo 120 min)
-    Tmax = max(60.0, min(Tmax, 120.0))
+    # Usar um teto para ser mais realístico: jornada de 6 horas
+    Tmax = max(min(Tmax, 60*6), np.amax(T)+np.amax(s))  # máximo 6 horas
     
     print(f"Tempo médio por requisição: {tempo_medio_requisicao:.1f} min")
     print(f"Tempo máximo por requisição: {tempo_max_requisicao:.1f} min")
