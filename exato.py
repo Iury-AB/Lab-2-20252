@@ -107,17 +107,7 @@ class Exato:
         """
 
         self._valida_dados(dados)
-
-        # Calcular M baseado nos dados da instância para evitar problemas numéricos
-        try:
-            max_tempo_janela = np.max(dados.l) if dados.l is not None else 1000
-            max_tempo_viagem = np.max(dados.T) if dados.T is not None else 1000
-            soma_tempos_servico = np.sum(dados.s) if dados.s is not None else 100
-            tempo_maximo_viagem = dados.Tmax if hasattr(dados, 'Tmax') and dados.Tmax is not None else 100
-            
-            M = max(max_tempo_janela, max_tempo_viagem, tempo_maximo_viagem) + soma_tempos_servico + 100
-        except:
-            M = 10000  # fallback seguro
+        M = 1e7  # Constante grande para relaxamento de restrições
             
         print(f"Valor de M calculado: {M:.2f}")
         if hasattr(dados, 'Tmax') and dados.Tmax is not None:
@@ -141,7 +131,7 @@ class Exato:
 
         self._restricao_sequencia(modelo, K, V, y)
 
-        self._restricao_tempo_maximo(modelo, K, V, dados, x, y, N0)
+        self._restricao_tempo_maximo(modelo, K, V, N, M, dados, x, y, B)
 
         self._restricao_janela(modelo, dados, K, V, N0, N, x, B)
 
@@ -514,8 +504,9 @@ class Exato:
                         name=f"sequencia_viagem_{v}_{k}"
                     )
 
-    def _restricao_tempo_maximo(self, modelo: gp.Model, K: list[int], V: list[int],
-                                dados: Dados, x: dict, y: dict, N0: list[int]) -> None:
+    def _restricao_tempo_maximo(self, modelo: gp.Model, K: list[int], 
+                                V: list[int], N: list[int], M: float,
+                                dados: Dados, x: dict, y: dict, B: dict) -> None:
         """
         Adiciona restrições de tempo máximo por viagem usando uma abordagem direta.
         
@@ -542,18 +533,12 @@ class Exato:
         """
         for k in K:
             for v in V:
-                # Tempo total da viagem = soma dos tempos de viagem + tempos de serviço
-                tempo_total = gp.quicksum(
-                    (dados.T[i, j] + dados.s[j]) * x[i, j, v, k] 
-                    for i in N0 
-                    for j in N0 
-                    if i != j
-                )
-                
-                modelo.addConstr(
-                    tempo_total <= y[v, k] * dados.Tmax,
-                    name=f"tempo_maximo_viagem_{v}_{k}"
-                )
+                for i in N:
+                    # Tempo total da viagem = soma dos tempos de viagem + tempos de serviço
+                    modelo.addConstr(
+                        B[0, v, k] - B[i, v, k] + dados.s[0] + dados.T[0, i] 
+                        - M*(1 - x[0, i, v, k]) <= dados.Tmax * y[v, k]
+                    )                    
 
     def _restricao_janela(self, modelo: gp.Model, dados: Dados, K: list[int],
                           V: list[int], N0: list[int], N: list[int], x: dict, 
@@ -671,7 +656,7 @@ class Exato:
                             )
 
                         # CASO 2: Movimento dentro da mesma viagem (exceto caso 1)
-                        else:
+                        elif i != 0:
                             modelo.addConstr(
                                 B[i, v, k] + dados.s[i] + dados.T[i, j]
                                 - M * (1 - x[i, j, v, k]) <= B[j, v, k],
@@ -711,7 +696,7 @@ if __name__ == "__main__":
     dados = carrega_dados_json('./dados/pequena.json')
     
     # Configura solver com limite de tempo de 60 segundos
-    metodo = Exato(limite_tempo=60)
+    metodo = Exato(limite_tempo=None)
     
     # Resolve o problema
     solucao = metodo.resolve(dados)
@@ -720,4 +705,4 @@ if __name__ == "__main__":
     print(solucao)
 
     # Salva solução
-    solucao.salvar('resultado.json')
+    # solucao.salvar('resultado.json')
