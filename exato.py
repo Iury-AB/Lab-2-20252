@@ -131,11 +131,11 @@ class Exato:
 
         self._restricao_sequencia(modelo, K, V, y)
 
-        self._restricao_tempo_maximo(modelo, K, V, N, M, dados, x, y, B)
-
         self._restricao_janela(modelo, dados, K, V, N0, N, x, B)
 
         self._restricao_fluxo(modelo, dados, M, K, V, N0, x, B)
+
+        self._restricao_tempo_maximo(modelo, K, V, N, M, dados, x, y, B)
 
         modelo.update()
 
@@ -534,11 +534,10 @@ class Exato:
         for k in K:
             for v in V:
                 for i in N:
-                    # Tempo total da viagem = soma dos tempos de viagem + tempos de serviço
                     modelo.addConstr(
-                        B[0, v, k] - B[i, v, k] + dados.s[0] + dados.T[0, i] 
-                        - M*(1 - x[0, i, v, k]) <= dados.Tmax * y[v, k]
-                    )                    
+                        B[0, v, k] - B[i, v, k] + dados.s[0] + dados.T[0, i] - M*(1 - x[0, i, v, k]) <= dados.Tmax * y[v, k],
+                        name=f"tempo_viagem_{v}_{k}"
+                    )                 
 
     def _restricao_janela(self, modelo: gp.Model, dados: Dados, K: list[int],
                           V: list[int], N0: list[int], N: list[int], x: dict, 
