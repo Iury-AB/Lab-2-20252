@@ -11,7 +11,6 @@ passageiros entre portões de embarque e aeronaves estacionadas
 remotamente, minimizando o custo total de operação enquanto respeitando:
 - Janelas de tempo das requisições
 - Capacidade limitada de viagens por ônibus
-- Restrições de distância máxima (autonomia)
 - Conservação de fluxo
 
 Formulação Matemática:
@@ -74,7 +73,7 @@ class Exato:
         """
         self.limite_tempo = limite_tempo
 
-    def resolve(self, dados: Dados) -> Solucao:
+    def resolve(self, dados: Dados, verbose: bool = True) -> Solucao:
         """
         Resolve o problema de embarque remoto usando otimização exata (MILP).
         
@@ -95,6 +94,8 @@ class Exato:
             dados: Instância do problema contendo todos os parâmetros 
                    necessários (requisições, ônibus, distâncias, custos, 
                    janelas de tempo, etc.)
+            verbose: Se True, imprime informações detalhadas do processo 
+                     de otimização
         
         Returns:
             Solucao: Objeto contendo a solução ótima ou melhor solução 
@@ -116,14 +117,18 @@ class Exato:
 
         self._valida_dados(dados)
         M = 1e7  # Constante grande para relaxamento de restrições
-            
-        print(f"Valor de M calculado: {M:.2f}")
-        if hasattr(dados, 'Tmax') and dados.Tmax is not None:
-            print(f"Tempo máximo por viagem: {dados.Tmax:.2f}")
         LIMITE_TEMPO = self.limite_tempo
 
+        if not verbose:
+            env = gp.Env(empty=True)
+            env.setParam('OutputFlag', 0)
+            env.start()
+        else:
+            env = gp.Env()
+            env.start()
+    
         modelo = gp.Model("Otimização do Serviço de Ônibus para Embarque "
-                          "Remoto")
+                          "Remoto", env=env)
 
         N, N0, V, K = self._retorna_conjuntos(dados)
 
@@ -159,12 +164,16 @@ class Exato:
         tempo_total = time() - tic
 
         if modelo.Status == GRB.OPTIMAL:
-            print(f"Solução ótima encontrada em {tempo_total:.2f} segundos.")
+            if verbose:
+                print(f"Solução ótima encontrada em {tempo_total:.2f} segundos.")
         elif modelo.Status == GRB.TIME_LIMIT:
-            print(f"Tempo limite atingido em {tempo_total:.2f} segundos.")
+            if verbose:
+                print(f"Tempo limite atingido em {tempo_total:.2f} segundos.")
         else:
-            print(f"Solução não encontrada. Status: {modelo.Status}")
-            exit()
+            if verbose:
+                print(f"Solução não encontrada. Status: {modelo.Status}")
+            raise RuntimeError("Gurobi não conseguiu encontrar uma solução "
+                               "viável.")
 
         solucao = Solucao()
         solucao.carrega_modelo_gurobi(modelo, dados)
@@ -732,10 +741,10 @@ if __name__ == "__main__":
     dados = carrega_dados_json('./dados/pequena.json')
     
     # Configura solver com limite de tempo de 60 segundos
-    metodo = Exato(limite_tempo=None)
+    metodo = Exato(limite_tempo=60)
     
     # Resolve o problema
-    solucao = metodo.resolve(dados)
+    solucao = metodo.resolve(dados, verbose=False)
     
     # Exibe resultados
     print(solucao)
