@@ -1,9 +1,9 @@
 """
 Módulo de Representação de Soluções para o Problema de Embarque Remoto
 
-Este módulo contém a classe Solucao, responsável por armazenar e organizar
-os resultados obtidos pela resolução do problema de otimização de rotas
-de ônibus em aeroportos com embarque remoto.
+Este módulo contém a classe Solucao, responsável por armazenar e 
+organizar os resultados obtidos pela resolução do problema de otimização 
+de rotas de ônibus em aeroportos com embarque remoto.
 
 A classe encapsula:
 - Rotas detalhadas de cada ônibus por viagem
@@ -269,8 +269,10 @@ class Solucao:
                 if self.rota[k][v]:  # Apenas viagens não vazias
                     dados_json["onibus"][str(k)][f"viagem_{v}"] = {
                     "rota": self.rota[k][v],
-                    "arcos": list(self.arcos[k][v]) if k in self.arcos and v in self.arcos[k] else [],
-                    "chegada": self.chegada[k][v] if k in self.chegada and v in self.chegada[k] else []
+                    "arcos": list(self.arcos[k][v]) if k in self.arcos and v in 
+                    self.arcos[k] else [],
+                    "chegada": self.chegada[k][v] if k in self.chegada and v in 
+                    self.chegada[k] else []
                     }
         
         try:

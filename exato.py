@@ -741,4 +741,5 @@ if __name__ == "__main__":
     print(solucao)
 
     # Salva solução
+    # TODO: descomentar para salvar quando estiver implementado
     # solucao.salvar('resultado.json')
