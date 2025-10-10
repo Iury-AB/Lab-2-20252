@@ -131,7 +131,7 @@ def analisar_instancia(dados: Dict[str, Any], nome_instancia: str) -> Dict[str, 
     # ===== INFORMAÇÕES BÁSICAS E DIMENSIONAMENTO =====
     n = dados['numeroRequisicoes']                          # Total de requisições
     K = dados['numeroOnibus']                               # Frota de ônibus
-    Dmax = dados['distanciaMaxima']                         # Autonomia máxima
+    Tmax = dados.get('tempoMaximoViagem', dados.get('distanciaMaxima', 0))  # Tempo máximo por viagem
     V_max = dados.get('numeroMaximoViagens', 5)             # Viagens por ônibus
     
     print(f"Número de requisições: {n}")
@@ -139,23 +139,44 @@ def analisar_instancia(dados: Dict[str, Any], nome_instancia: str) -> Dict[str, 
     print(f"Máximo de viagens por ônibus: {V_max}")
     print(f"Capacidade total de viagens: {K * V_max}")
     print(f"Utilização estimada: {n / (K * V_max) * 100:.1f}%")
-    print(f"Distância máxima por viagem: {Dmax:.2f}m")
+    print(f"Tempo máximo por viagem: {Tmax:.1f} min")
     
-    # ===== ANÁLISE DETALHADA DOS VOOS =====
+    # ===== ANÁLISE DETALHADA DOS VOOS (MODELO DESEMBARQUE-EMBARQUE) =====
     voos = dados['detalhes_voos']
-    print(f"Número de voos: {len(voos)}")
+    print(f"\nNúmero de voos: {len(voos)}")
     
-    # Estatísticas de passageiros
-    passageiros_total = sum(v['n_passageiros'] for v in voos)
-    passageiros_medio = passageiros_total / len(voos)
-    
-    # Classificação por tipo de operação
-    embarques = [v for v in voos if v['tipo'] == 'embarque']
-    desembarques = [v for v in voos if v['tipo'] == 'desembarque']
-    
-    print(f"Passageiros total: {passageiros_total}")
-    print(f"Passageiros por voo (média): {passageiros_medio:.1f}")
-    print(f"Embarques: {len(embarques)}, Desembarques: {len(desembarques)}")
+    # Verificar se é o novo modelo (com desembarque e embarque separados)
+    if 'n_passageiros_desembarque' in voos[0]:
+        # Novo modelo: cada voo tem desembarque e embarque
+        passageiros_desembarque = sum(v['n_passageiros_desembarque'] for v in voos)
+        passageiros_embarque = sum(v['n_passageiros_embarque'] for v in voos)
+        requisicoes_desembarque = sum(v['n_requisicoes_desembarque'] for v in voos)
+        requisicoes_embarque = sum(v['n_requisicoes_embarque'] for v in voos)
+        
+        print(f"Passageiros em desembarque: {passageiros_desembarque}")
+        print(f"Passageiros em embarque: {passageiros_embarque}")
+        print(f"Total de passageiros: {passageiros_desembarque + passageiros_embarque}")
+        print(f"Requisições de desembarque: {requisicoes_desembarque}")
+        print(f"Requisições de embarque: {requisicoes_embarque}")
+        print(f"Média de passageiros por voo (desembarque): {passageiros_desembarque / len(voos):.1f}")
+        print(f"Média de passageiros por voo (embarque): {passageiros_embarque / len(voos):.1f}")
+        
+        # Estatísticas de turnaround
+        turnaround_medio = np.mean([v['tempo_turnaround'] for v in voos])
+        print(f"Tempo médio de turnaround: {turnaround_medio:.1f} min")
+        
+        passageiros_total = passageiros_desembarque + passageiros_embarque
+    else:
+        # Modelo antigo: embarque OU desembarque
+        passageiros_total = sum(v['n_passageiros'] for v in voos)
+        passageiros_medio = passageiros_total / len(voos)
+        
+        embarques = [v for v in voos if v['tipo'] == 'embarque']
+        desembarques = [v for v in voos if v['tipo'] == 'desembarque']
+        
+        print(f"Passageiros total: {passageiros_total}")
+        print(f"Passageiros por voo (média): {passageiros_medio:.1f}")
+        print(f"Embarques: {len(embarques)}, Desembarques: {len(desembarques)}")
     
     # ===== ANÁLISE TEMPORAL E JANELAS DE TEMPO =====
     e = np.array(dados['inicioJanela'])                     # Início das janelas

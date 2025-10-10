@@ -16,9 +16,9 @@ import random
 from datetime import datetime, timedelta
 import math
 
-def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5, 
-                            duracao_operacao_horas=8, seed=42, n_portoes=10,
-                            n_posicoes_aeronaves=15):
+def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=55, n_onibus=5, 
+                              duracao_operacao_horas=8, seed=42, n_portoes=5,
+                              n_posicoes_aeronaves=15, preparo_onibus=10):
     """
     Gera uma instância realística do problema de embarque remoto de aeroporto.
     
@@ -30,6 +30,8 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     - seed: semente para reprodutibilidade
     - n_portoes: número de portões de embarque
     - n_posicoes_aeronaves: número de posições de aeronaves
+    - preparo_onibus: tempo (min) para o ônibus se preparar e iniciar 
+      uma viagem
     """
     
     random.seed(seed)
@@ -37,33 +39,61 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     
     print(f"Gerando instância com {n_voos} voos, {n_onibus} ônibus...")
     
-    # 1. Gerar voos com número de passageiros variado
+    # 1. Gerar voos com duas fases: desembarque seguido de embarque
     voos = []
     total_requisicoes = 0
     
     for i in range(n_voos):
-        # Número de passageiros varia entre 80 e 300 (típico para voos domésticos/internacionais)
-        n_passageiros = random.randint(80, 300)
+        # Horário de aterrisagem (distribuído ao longo do dia)
+        horario_aterrisagem = (
+            + i * (duracao_operacao_horas * 60) // n_voos
+        ) # em minutos
+
+        # Garantir que o horário de aterrisagem permita o preparo do ônibus
+        if horario_aterrisagem < preparo_onibus * 1.2:
+            horario_aterrisagem = preparo_onibus * 1.2
         
-        # Calcular número de requisições necessárias (viagens de ônibus)
-        n_requisicoes_voo = math.ceil(n_passageiros / capacidade_onibus)
+        # Passageiros que desembarcam (chegando)
+        n_passageiros_desembarque = random.randint(80, 300)
+        n_requisicoes_desembarque = math.ceil(n_passageiros_desembarque / capacidade_onibus)
         
-        # Tipo de operação (embarque ou desembarque)
-        tipo = random.choice(['embarque', 'desembarque'])
+        # Passageiros que embarcam (partindo) - pode ser diferente
+        n_passageiros_embarque = random.randint(80, 300)
+        n_requisicoes_embarque = math.ceil(n_passageiros_embarque / capacidade_onibus)
         
-        # Horário do voo (distribuído ao longo do dia)
-        horario_base = i * (duracao_operacao_horas * 60) // n_voos  # em minutos
+        # Tempo total para desembarque completo (desde aterrisagem até último passageiro sair)
+        tempo_total_desembarque = 25 # minutos fixo para desembarque
+        
+        # Tempo de turnaround: preparação da aeronave entre desembarque e embarque
+        # Inclui: limpeza, abastecimento, checagens (min 15, max 30 min)
+        tempo_turnaround = min(max(15, 15 + (n_passageiros_desembarque + n_passageiros_embarque) / 20), 30)
+        
+        # Tempo para embarque completo (desde início até último passageiro entrar)
+        # Geralmente mais rápido que desembarque
+        tempo_total_embarque = 50 # minutos fixo para embarque
+        
+        # Horário que o desembarque deve iniciar (logo após aterrisagem)
+        horario_inicio_desembarque = horario_aterrisagem
+        
+        # Horário que o embarque deve iniciar (após desembarque + turnaround)
+        horario_inicio_embarque = horario_inicio_desembarque + tempo_total_desembarque + tempo_turnaround
         
         voo = {
             'id': i + 1,
-            'tipo': tipo,
-            'n_passageiros': n_passageiros,
-            'n_requisicoes': n_requisicoes_voo,
-            'horario_base': horario_base
+            'horario_aterrisagem': horario_aterrisagem,
+            'n_passageiros_desembarque': n_passageiros_desembarque,
+            'n_requisicoes_desembarque': n_requisicoes_desembarque,
+            'n_passageiros_embarque': n_passageiros_embarque,
+            'n_requisicoes_embarque': n_requisicoes_embarque,
+            'tempo_total_desembarque': tempo_total_desembarque,
+            'tempo_turnaround': tempo_turnaround,
+            'tempo_total_embarque': tempo_total_embarque,
+            'horario_inicio_desembarque': horario_inicio_desembarque,
+            'horario_inicio_embarque': horario_inicio_embarque
         }
         
         voos.append(voo)
-        total_requisicoes += n_requisicoes_voo
+        total_requisicoes += n_requisicoes_desembarque + n_requisicoes_embarque
     
     n = total_requisicoes
     
@@ -72,21 +102,21 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     requisicoes_por_onibus = math.ceil(n / n_onibus)
     
     # Tempo médio por viagem (incluindo ida, serviço e volta): ~45-60 min
-    tempo_medio_viagem = 50  # minutos
-    viagens_possiveis_por_tempo = duracao_operacao_horas * 60 // tempo_medio_viagem
+    tempo_medio_viagem = 50  # minutos (CORRIGIDO: valor realístico)
+    viagens_possiveis_por_tempo = int(duracao_operacao_horas * 60 / tempo_medio_viagem)
     
-    # Usar o menor entre a necessidade e a capacidade temporal, com margem de segurança
-    max_viagens_por_onibus = min(
-        max(3, requisicoes_por_onibus),  # Mínimo 3 viagens
-        min(8, viagens_possiveis_por_tempo)  # Máximo 8 viagens ou limite temporal
+    # Usar o maior entre a necessidade e a possibilidade temporal
+    max_viagens_por_onibus = max(
+        requisicoes_por_onibus,  # Necessidade baseada em requisições
+        min(viagens_possiveis_por_tempo, 10)  # Limite prático de 10 viagens
     )
     
     print(f"Total de requisições geradas: {n}")
     print(f"Máximo de viagens por ônibus: {max_viagens_por_onibus}")
     
     # 2. Gerar layout do aeroporto (coordenadas dos pontos)
-    # Garagem (ponto 0) no centro
-    garagem = (0, 0)
+    # Garagem (ponto 0) no centro da operação
+    garagem = (0, 1000)
     
     # Portões de embarque (lado oeste)
     portoes = []
@@ -114,22 +144,39 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
         portao = random.choice(portoes)
         posicao_aeronave = random.choice(posicoes_aeronaves)
         
-        for req_voo in range(voo['n_requisicoes']):
+        # FASE 1: DESEMBARQUE (aeronave → portão)
+        # Requisições de desembarque ocorrem logo após aterrisagem
+        tempo_por_requisicao_desembarque = voo['tempo_total_desembarque'] / voo['n_requisicoes_desembarque']
+        
+        for req_desembarque in range(voo['n_requisicoes_desembarque']):
             req_id += 1
             
-            if voo['tipo'] == 'embarque':
-                # Coleta no portão, entrega na aeronave
-                pontos_coleta.append(portao)
-                pontos_entrega.append(posicao_aeronave)
-            else:
-                # Coleta na aeronave, entrega no portão
-                pontos_coleta.append(posicao_aeronave)
-                pontos_entrega.append(portao)
+            # Coleta na aeronave, entrega no portão
+            pontos_coleta.append(posicao_aeronave)
+            pontos_entrega.append(portao)
             
-            # Janela de tempo para esta requisição
-            # Requisições do mesmo voo têm janelas sequenciais
-            inicio_janela = voo['horario_base'] + req_voo * 5  # 5 min entre requisições do mesmo voo
-            fim_janela = inicio_janela + 15  # 15 min de flexibilidade
+            # Janela de tempo para esta requisição de desembarque
+            # Cada requisição tem uma janela dentro do tempo total de desembarque
+            inicio_janela = voo['horario_inicio_desembarque'] + req_desembarque * tempo_por_requisicao_desembarque
+            fim_janela = inicio_janela + tempo_por_requisicao_desembarque # * 1.2  # 20% de flexibilidade
+            
+            janelas_tempo.append((inicio_janela, fim_janela))
+        
+        # FASE 2: EMBARQUE (portão → aeronave)
+        # Requisições de embarque ocorrem após desembarque completo + turnaround
+        tempo_por_requisicao_embarque = voo['tempo_total_embarque'] / voo['n_requisicoes_embarque']
+        
+        for req_embarque in range(voo['n_requisicoes_embarque']):
+            req_id += 1
+            
+            # Coleta no portão, entrega na aeronave
+            pontos_coleta.append(portao)
+            pontos_entrega.append(posicao_aeronave)
+            
+            # Janela de tempo para esta requisição de embarque
+            # Cada requisição tem uma janela dentro do tempo total de embarque
+            inicio_janela = voo['horario_inicio_embarque'] + req_embarque * tempo_por_requisicao_embarque
+            fim_janela = inicio_janela + tempo_por_requisicao_embarque # * 1.2  # 20% de flexibilidade
             
             janelas_tempo.append((inicio_janela, fim_janela))
     
@@ -166,13 +213,13 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     
     # 7. Tempos de serviço
     s = np.zeros(n + 1)
-    s[0] = 10.0  # 10 min para reabastecimento na garagem
+    s[0] = preparo_onibus # Tempo de preparo para uma viagem (minutos)
     for i in range(1, n + 1):
         # Tempo de embarque/desembarque varia entre 3-8 minutos
         s[i] = random.uniform(3.0, 8.0)
     
     # 8. Calcular tempos de viagem (assumindo velocidade de 30 km/h = 500 m/min)
-    velocidade = 500  # metros por minuto
+    velocidade = 500 # metros por minuto
     t = d / velocidade
     
     # Matriz de tempos entre requisições
@@ -199,26 +246,30 @@ def gerar_instancia_aeroporto(n_voos=10, capacidade_onibus=50, n_onibus=5,
     tempo_medio_requisicao = np.mean([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
     tempo_max_requisicao = np.max([T[0, j] + s[j] + T[j, 0] for j in range(1, n + 1)])
     
-    # Tempo máximo por viagem: 3 turnos de operação
-    Tmax = duracao_operacao_horas * 60 / 3
+    # Tempo máximo por viagem: permite 3-4 requisições com folga
+    # Fórmula: tempo_preparacao_garagem + 3.5 * tempo_medio_requisicao
+    Tmax = s[0] + 3.5 * tempo_medio_requisicao
     
-    # Usar um teto para ser mais realístico: jornada de 6 horas
-    Tmax = max(min(Tmax, 60*6), np.amax(T)+np.amax(s))  # máximo 6 horas
+    # Garantir viabilidade: pelo menos uma requisição deve ser possível
+    Tmax = max(Tmax, tempo_max_requisicao + 10)  # +10 min de margem
+    
+    # Limitar para ser realístico: mínimo 60 min, máximo 120 min
+    Tmax = max(60.0, min(Tmax, 120.0))
     
     print(f"Tempo médio por requisição: {tempo_medio_requisicao:.1f} min")
     print(f"Tempo máximo por requisição: {tempo_max_requisicao:.1f} min")
     print(f"Tempo máximo por viagem definido: {Tmax:.1f} min")
+    print(f"Requisições estimadas por viagem: {(Tmax - s[0]) / tempo_medio_requisicao:.1f}")
     
     # 11. Estruturar dados para saída
     dados = {
         "metadados": {
-            "descricao": "Instância realística de embarque remoto de aeroporto",
+            "descricao": "Instância de embarque remoto de aeroporto com modelo de desembarque-embarque",
             "data_geracao": datetime.now().isoformat(),
             "n_voos": n_voos,
             "capacidade_onibus": capacidade_onibus,
             "duracao_operacao_horas": duracao_operacao_horas,
             "seed": seed,
-            "restricao": "tempo_maximo_por_viagem"
         },
         "numeroRequisicoes": n,
         "numeroOnibus": n_onibus,
@@ -256,16 +307,16 @@ def gerar_instancias_variadas():
     
     instancias = [
         # Instância pequena (teste)
-        {"nome": "pequena", "n_voos": 5, "n_onibus": 3, "duracao": 4},
+        {"nome": "pequena", "n_voos": 2, "n_onibus": 3, "duracao": 4}, # era 5 voos
         
         # Instância média (realística)
-        {"nome": "media", "n_voos": 15, "n_onibus": 6, "duracao": 8},
+        {"nome": "media", "n_voos": 10, "n_onibus": 6, "duracao": 8},
         
         # Instância grande (pico de operação)
-        {"nome": "grande", "n_voos": 30, "n_onibus": 10, "duracao": 12},
+        {"nome": "grande", "n_voos": 15, "n_onibus": 11, "duracao": 12},
         
         # Instância rush (alta demanda)
-        {"nome": "rush", "n_voos": 20, "n_onibus": 8, "duracao": 6}
+        {"nome": "rush", "n_voos": 15, "n_onibus": 11, "duracao": 6}
     ]
     
     for config in instancias:
@@ -284,7 +335,15 @@ def gerar_instancias_variadas():
             json.dump(dados, f, indent=2, ensure_ascii=False)
         
         print(f"Instância salva em: {nome_arquivo}")
-        print(f"Requisições: {dados['numeroRequisicoes']}")
+        print(f"Voos: {config['n_voos']}")
+        print(f"Requisições totais: {dados['numeroRequisicoes']}")
+        
+        # Calcular estatísticas de desembarque/embarque
+        n_req_desembarque = sum(v['n_requisicoes_desembarque'] for v in dados['detalhes_voos'])
+        n_req_embarque = sum(v['n_requisicoes_embarque'] for v in dados['detalhes_voos'])
+        
+        print(f"  - Requisições de desembarque: {n_req_desembarque}")
+        print(f"  - Requisições de embarque: {n_req_embarque}")
         print(f"Ônibus: {dados['numeroOnibus']}")
         print(f"Máximo viagens por ônibus: {dados['numeroMaximoViagens']}")
         print(f"Capacidade total: {dados['numeroOnibus'] * dados['numeroMaximoViagens']} viagens")
@@ -299,12 +358,3 @@ if __name__ == "__main__":
     
     print("\n" + "=" * 70)
     print("Instâncias geradas com sucesso!")
-    print("\nCaracterísticas das instâncias:")
-    print("- Layout realístico de aeroporto com portões e posições de aeronaves")
-    print("- Voos com número variado de passageiros (80-300)")
-    print("- Janelas de tempo coordenadas com horários de voos")
-    print("- Tempos de serviço realísticos (3-8 min)")
-    print("- Distâncias baseadas em coordenadas geográficas")
-    print("- Capacidade de ônibus: 50 passageiros")
-    print("- Velocidade de operação: 30 km/h")
-    print("- RESTRIÇÃO: Tempo máximo por viagem (em vez de distância)")

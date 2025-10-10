@@ -79,8 +79,8 @@ Cada voo é desmembrado em um conjunto de \textbf{requisições}
 \frametitle{Restrições Operacionais}
 \begin{itemize}
     \item \textbf{Garagem central}: Todos os ônibus partem da garagem
-    \item \textbf{Reabastecimento obrigatório}: Após completar requisições
-    \item \textbf{Limite de autonomia}: Distância máxima por viagem
+    \item \textbf{Fim de viagem}: Volta obrigatória para a garagem após completar requisições
+    \item \textbf{Limite de tempo}: Tempo máximo por viagem
     \item \textbf{Múltiplas viagens}: Ônibus pode fazer várias viagens por dia
     \item \textbf{Pares acoplados}: Coleta e entrega pela mesma unidade
 \end{itemize}
@@ -90,7 +90,7 @@ Cada voo é desmembrado em um conjunto de \textbf{requisições}
 \begin{itemize}
     \item \textbf{PDPTW}: Pickup and Delivery Problem with Time Windows
     \item \textbf{DARP}: Dial-a-Ride Problem (pares acoplados)
-    \item Problema de múltiplas viagens com reabastecimento
+    \item Problema de múltiplas viagens com limite de tempo
 \end{itemize}
 \end{block}
 \end{frame}
@@ -108,8 +108,7 @@ Cada voo é desmembrado em um conjunto de \textbf{requisições}
 \end{block}
 
 \begin{alertblock}{Diferencial do Problema}
-Combinação única de características: pares acoplados, múltiplas viagens, 
-reabastecimento, janelas de tempo e limite de autonomia
+Combinação única de características: pares acoplados, múltiplas viagens, janelas de tempo e limite de tempo
 \end{alertblock}
 \end{frame}
 
@@ -207,23 +206,21 @@ $$e_i \sum_{j \in N_0} x_{jivk} \leq B_{ivk} \leq l_i \sum_{j \in N_0} x_{jivk},
 \end{block}
 
 \begin{block}{Sequência Temporal (Intra-viagem)}
-$$B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \leq B_{jvk}$$
-$$\forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K$$
+$$B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \leq B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, v \in V, k \in K$$
+$$ s_0 + T_{0i} - M (1 - x_{0i1k}) \leq B_{i1k}, \quad \forall i \in N, k \in K$$
 \end{block}
 
 \begin{block}{Sequência Temporal (Inter-viagem)}
 $$B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \leq B_{ivk}$$
-$$\forall i \in N, \forall v \in V, v > 1, \forall k \in K$$
+$$\forall i \in N, v \in V, v > 1, k \in K$$
 \end{block}
 \end{frame}
 
 \begin{frame}
 \frametitle{Restrições de Tempo e Domínio}
 \begin{block}{Limite de Tempo por Viagem}
-O tempo acumulado em uma viagem não pode exceder o limite máximo. Como $B_{0vk}$ é o instante que o ônibus $k$ chega à garagem para concluir a viagem $v$, então, no caso da primeira viagem ($v=1$):
-$$ B_{0,1,k} \leq T^{\max} y_{1k}, \quad \forall k \in K$$
-No caso das outras viagens ($v>1$):
-$$ B_{0vk} - B_{0,v-1,k} \leq T^{\max} y_{vk}, \quad \forall k \in K, \forall v \in V, v > 1$$
+O tempo total de uma viagem não pode exceder o limite máximo. Uma viagem começa no instante que o ônibus realiza a preparação para sair da garagem e termina quando o ônibus retorna à garagem:
+$$ B_{0vk} - B_{ivk} + s_0 + T_{0i} - M (1-x_{0ivk}) \leq T^{\max} y_{vk}, \quad \forall i \in N, \forall v \in V, k \in K$$
 \end{block}
 
 \begin{block}{Domínio das Variáveis}
@@ -262,11 +259,11 @@ de embarque remoto em aeroportos
 \begin{frame}
 \frametitle{Aspectos Únicos do Modelo}
 \begin{itemize}
-    \item \textbf{Reabastecimento obrigatório}: Ônibus devem retornar à garagem após cada viagem
+    \item \textbf{Retorno obrigatório}: Ônibus devem retornar à garagem após cada viagem
     \item \textbf{Pares acoplados}: Coleta e entrega da mesma requisição pelo mesmo ônibus
     \item \textbf{Janelas de tempo}: Embarques/desembarques têm horários específicos
     \item \textbf{Múltiplas viagens}: Mesmo ônibus pode fazer várias viagens
-    \item \textbf{Limite de autonomia}: Restrição de distância máxima por viagem
+    \item \textbf{Limite de tempo}: Restrição de tempo máximo por viagem
     \item \textbf{Múltiplas requisições por voo}: Desmembramento baseado na capacidade
 \end{itemize}
 

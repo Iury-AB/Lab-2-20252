@@ -29,7 +29,7 @@
 \maketitle
 
 \begin{abstract}
-    Este documento fornece uma formulação matemática para o problema de otimização do serviço de embarque remoto de um aeroporto, considerando as restrições de tempo e capacidade dos ônibus. O problema é modelado como um problema de roteamento de veículos com coleta e entrega acopladas, com múltiplas viagens, limites de distância e janelas de tempo. As equações matemáticas detalham a função objetivo, as variáveis de decisão e as restrições que regem o sistema.
+    Este documento fornece uma formulação matemática para o problema de otimização do serviço de embarque remoto de um aeroporto, considerando as restrições de tempo e capacidade dos ônibus. O problema é modelado como um problema de roteamento de veículos com coleta e entrega acopladas, com múltiplas viagens, limites de tempo de viagem e janelas de tempo. As equações matemáticas detalham a função objetivo, as variáveis de decisão e as restrições que regem o sistema.
 \end{abstract}
 
 \noindent \textbf{Palavras-chave}: otimização, pesquisa operacional, roteamento de veículos, coleta e entrega, múltiplas viagens.
@@ -38,11 +38,11 @@
 
 Seja um aeroporto em um dia de operação normal. Existe uma certa quantidade de embarques e desembarque que são feitas remotamente, i.e., ônibus idênticos são deslocados para levar passageiros do portão de embarque para o avião e vice-versa. O número de passageiros em um voo é geralmente maior que o número de assentos disponíveis no ônibus, o que implica que múltiplas viagens ou múltiplos ônibus são necessários para completar o transporte de todos os passageiros. Além disso, cada voo tem um horário específico para embarque e desembarque, o que impõe janelas de tempo para o transporte dos passageiros.
 
-Cada voo, seja de embarque ou desembarque, pode ser desmembrado em um conjunto de requisições. Ou seja, se um voo tem 150 passageiros e o ônibus tem capacidade para 50, então são necessárias 3 requisições para completar o transporte. Cada requisição consiste em uma tarefa de coleta (no caso de embarque, no portão de embarque; no caso de desembarque, no avião) e uma tarefa de entrega (no caso de embarque, no avião; no caso de desembarque, no portão de desembarque). Essas tarefas são acopladas, ou seja, a entrega da requisição só pode ser feita após a coleta. Além disso, cada grupo de passageiros podem ter uma janela de tempo específica para coleta, de maneira que a ordem dos embarques ou desembarques são respeitados e o prazo para que o voo termine o embarque ou desembarque também seja viável.
+Cada voo, seja de embarque ou desembarque, pode ser desmembrado em um conjunto de requisições. Ou seja, se um voo tem 150 passageiros e o ônibus tem capacidade para 50, então são necessárias 3 requisições para completar o transporte. Cada requisição consiste então em uma tarefa de coleta (no caso de embarque, no portão de embarque; no caso de desembarque, no avião) e uma tarefa de entrega (no caso de embarque, no avião; no caso de desembarque, no portão de desembarque). Essas tarefas são acopladas, ou seja, a entrega da requisição só pode ser feita após a coleta. Além disso, cada grupo de passageiros podem ter uma janela de tempo específica para coleta, de maneira que a ordem dos embarques ou desembarques são respeitados e o prazo para que o voo termine o embarque ou desembarque também seja viável.
 
-Os ônibus são idênticos e partem de uma garagem localizada no aeroporto. Após completar uma ou mais requisições, o ônibus deve retornar à garagem para reabastecimento antes de atender novas requisições. Cada ônibus tem um limite de distância que ele pode percorrer antes de precisar retornar à garagem para reabastecimento.
+Os ônibus são idênticos e partem de uma garagem localizada no aeroporto. Uma viagem de cada ônibus significa sair da garagem, atender uma sequência de requisições (coleta e entrega) e retornar à garagem. Após retornar, o ônibus pode iniciar uma nova viagem, se necessário. Cada viagem tem um limite máximo de tempo, que inclui o tempo de deslocamento entre as requisições, o tempo de serviço em cada requisição (tempo para os passageiros embarcarem ou desembarcarem) e o tempo de preparação na garagem (tempo para preparação do ônibus). Ou seja, o início de uma viagem é o instante em que ele prepara o ônibus para sair da garagem para a primeira requisição. Isso implica que o ônibus pode ficar um tempo ocioso na garagem antes de iniciar uma nova viagem. O fim da viagem é o instante em que o ônibus retorna à garagem após completar todas as requisições da viagem.
 
-Desta forma, podemos tratar o problema de alocar ônibus para o embarque ou desembarque remoto de um aeroporto como um problema de roteamento de veículos com coleta e entrega acopladas, com múltiplas viagens, com limite de distância e com janela de tempo onde cada nó é uma requisição com um grupo dos passageiros que vão embarcar ou desembarcar de um voo específico. A formulação do problema de roteamento com coleta e entrega e janelas de tempo é conhecido na literatura como \textit{Pickup and Delivery Problem with Time Windows} (PDPTW). Quando os pares de coleta/entrega são acoplados, esta formulação é conhecida como \textit{Dial-a-Ride Problem} (DARP).
+Desta forma, podemos tratar o problema de alocar ônibus para o embarque ou desembarque remoto de um aeroporto como um problema de roteamento de veículos onde cada nó significa uma requisição. E, nesta requisição, está implícito a coleta e a entrega de um grupo de passageiros. Além disso, o problema envolve múltiplas viagens, janelas de tempo e limite de tempo por viagem. O objetivo é minimizar o custo total, que neste caso equivale à distância total percorrida por todos os ônibus. A formulação deste problema de roteamento com coleta e entrega e janelas de tempo é conhecido na literatura como \textit{Pickup and Delivery Problem with Time Windows} (PDPTW). Quando os pares de coleta/entrega são acoplados, esta formulação é conhecida como \textit{Dial-a-Ride Problem} (DARP).
 
 \section{Definições do Modelo}
 
@@ -75,9 +75,9 @@ Os seguintes parâmetros são necessários para o modelo.
 \subsection{Variáveis de Decisão}
 
 \begin{itemize}
-    \item $x_{ijvk} \in {0, 1}$: Variável binária que assume valor 1 se o ônibus $k$ viaja da requisição $i$ para a requisição $j$ na viagem $v$, e 0 caso contrário.
+    \item $x_{ijvk} \in \{0, 1\}$: Variável binária que assume valor 1 se o ônibus $k$ viaja da requisição $i$ para a requisição $j$ na viagem $v$, e 0 caso contrário.
     \item $B_{ivk} \ge 0$: Variável contínua que representa o instante de início do serviço na coleta da requisição $i$ pelo ônibus $k$ na viagem $v$.
-    \item $y_{vk} \in {0, 1}$: Variável binária que assume valor 1 se o ônibus $k$ realiza a viagem $v$, e 0 caso contrário.
+    \item $y_{vk} \in \{0, 1\}$: Variável binária que assume valor 1 se o ônibus $k$ realiza a viagem $v$, e 0 caso contrário.
 \end{itemize}
 
 \section{Modelo Matemático}
@@ -99,54 +99,49 @@ Minimizar o custo total que, neste caso, equivale à distância total percorrida
 
 \paragraph{Conservação de Fluxo} O fluxo é conservado em cada nó de requisição.
 \begin{equation}
-\sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} - \sum_{\substack{i \in N_0,\\i \neq j}} x_{jivk} = 0, \quad \forall j \in N, \forall v \in V, \forall k \in K
+\sum_{\substack{i \in N_0,\\i \neq j}} x_{ijvk} - \sum_{\substack{i \in N_0,\\i \neq j}} x_{jivk} = 0, \quad \forall j \in N, v \in V, k \in K
 \end{equation}
 
 \paragraph{Início e Fim de Cada Viagem:} Cada viagem utilizada ($y_{vk} = 1$) deve começar e terminar no depósito.
 \begin{align}
-\sum_{j \in N} x_{0jvk} &= y_{vk} \quad \forall k \in K, \forall v \in V & \\
-\sum_{i \in N} x_{i0vk} &= y_{vk} \quad \forall k \in K, \forall v \in V &
+\sum_{j \in N} x_{0jvk} &= y_{vk} \quad \forall k \in K, v \in V & \\
+\sum_{i \in N} x_{i0vk} &= y_{vk} \quad \forall k \in K, v \in V &
 \end{align}
 
 \paragraph{Sequência de Viagens:} Uma viagem $v$ só pode ser utilizada se a viagem anterior $v-1$ também for utilizada.
 \begin{equation}
-y_{vk} \le y_{v-1, k} \quad \forall k \in K, \forall v \in V, v > 1
+y_{vk} \le y_{v-1, k} \quad \forall k \in K, v \in V, v > 1
 \end{equation}
 
 \paragraph{Janela de Tempo da Coleta:} O início do serviço na coleta da requisição $i$ deve respeitar sua janela de tempo seja qual a viagem $v$ e o ônibus $k$ que realize esse requisição.
 \begin{equation}
-e_i \sum_{j \in N_0} x_{jivk} \le B_{ivk} \le l_i \sum_{j \in N_0} x_{jivk}, \quad \forall i \in N, \forall v \in V, \forall k \in K
+e_i \sum_{j \in N_0} x_{jivk} \le B_{ivk} \le l_i \sum_{j \in N_0} x_{jivk}, \quad \forall i \in N, v \in V, k \in K
 \end{equation}
 
 \paragraph{Sequência Temporal das Rotas (Intra-viagem):} Garante a consistência dos tempos de chegada entre requisições consecutivas de uma viagem $v$ ($M$ é uma constante grande).
 \begin{equation}
-B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, \forall v \in V, \forall k \in K
+B_{ivk} + s_i + T_{ij} - M(1 - x_{ijvk}) \le B_{jvk}, \quad \forall i \in N, j \in N_0, i \neq j, v \in V, k \in K
 \end{equation}
 
 \noindent Para contemplar o caso da saída da garagem na primeira viagem ($v=1$):
 
 \begin{equation}
-    s_0 + T_{0i} - M(1 - x_{0i1k}) \le B_{i1k}, \quad \forall i \in N, \forall k \in K
+    s_0 + T_{0i} - M(1 - x_{0i1k}) \le B_{i1k}, \quad \forall i \in N, k \in K
 \end{equation}
 
 \paragraph{Sequência Temporal das Rotas (Inter-viagem):} A partida da garagem para uma nova viagem $v$ só pode ocorrer após o retorno do ônibus $k$ da viagem anterior $v-1$.
 \begin{equation}
-    B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \le B_{ivk}, \quad \forall i \in N, \forall v \in V, v > 1, \forall k \in K
+    B_{0,v-1,k} + s_0 + T_{0i} - M(1 - x_{0ivk}) \le B_{ivk}, \quad \forall i \in N, v \in V, v > 1, k \in K
 \end{equation}
 
-\paragraph{Limite de Tempo por Viagem:} Garante que o tempo acumulado em uma viagem não exceda um limite máximo. No caso da primeira viagem, o tempo total é igual ao instante de chegada na garagem após completar todas as requisições da viagem. Ou seja:
+\paragraph{Limite de Tempo por Viagem:} Garante que o tempo acumulado em uma viagem não exceda um limite máximo. O início de cada viagem é o momento em que o ônibus sai da garagem. Isto equivale a dizer que esse instante é igual ao instante em que o ônibus chega na primeira requisição da viagem menos o tempo de trânsito até lá e menos o tempo de preparação da garagem. O fim da viagem é o instante em que o ônibus retorna à garagem após completar todas as requisições da viagem.
 \begin{equation}
-B_{01k} \le y_{1k} T^{\max}, \quad \forall k \in K
-\end{equation}
-
-\noindent Para as viagens subsequentes, o tempo total de uma viagem é igual ao instante em que o ônibus $k$ retorna à garagem após completar todas as requisições da viagem menos o instante que o ônibus chega à garagem na viagem anterior. Ou seja:
-\begin{equation}
-B_{0vk} - B_{0,v-1,k} \le y_{vk} T^{\max}, \quad \forall k \in K, \forall v \in V, v > 1
+B_{0vk} - B_{ivk} + s_0 + T_{0i} - M (1 - x_{0ivk}) \le y_{vk} T^{\max}, \quad \forall i \in N, v \in V, k \in K
 \end{equation}
 
 \paragraph{Domínio das Variáveis:}
 \begin{align}
-x_{ijvk} &\in \{0, 1\}, \quad \forall i,j \in N_0, \forall v \in V, k \in K \\
+x_{ijvk} &\in \{0, 1\}, \quad \forall i,j \in N_0, v \in V, k \in K \\
 y_{vk} &\in \{0, 1\}, \quad \forall v \in V, k \in K \\
 B_{ik} &\ge 0, \quad \forall i \in N, k \in K
 \end{align}
