@@ -219,6 +219,138 @@ class Solucao:
         # Armazenar valor da função objetivo (custo total da solução)
         self.fx = modelo.ObjVal
 
+    def carrega_para_modelo_gurobi(self, modelo: gp.Model, dados: Dados) -> None:
+        """
+        Carrega a solução atual para as variáveis de um modelo Gurobi.
+        
+        Este método é o inverso de carrega_modelo_gurobi(), permitindo
+        que uma solução armazenada seja recarregada em um modelo Gurobi
+        para uso como ponto inicial (warm start) ou para validação.
+        
+        Processo de carregamento:
+        1. Valida se a solução contém dados
+        2. Obtém conjuntos de índices dos dados
+        3. Para cada ônibus e viagem:
+        - Identifica arcos da rota
+        - Define x[i,j,v,k] = 1 para arcos utilizados
+        - Define x[i,j,v,k] = 0 para arcos não utilizados
+        - Define y[v,k] = 1 se viagem é utilizada
+        - Define B[i,v,k] com tempos de chegada
+        4. Atualiza o modelo com os valores
+        
+        Aplicações:
+        - Warm start: acelerar resolução fornecendo solução inicial
+        - Validação: verificar factibilidade de solução construída
+        - Debugging: comparar soluções manualmente construídas
+        - Resolução iterativa: usar solução anterior como ponto de partida
+        
+        Args:
+            modelo: Modelo Gurobi onde carregar a solução
+            dados: Instância original contendo dimensões do problema
+            
+        Returns:
+            None: Modifica as variáveis do modelo diretamente
+            
+        Raises:
+            ValueError: Se a solução está vazia ou dados são inconsistentes
+            AttributeError: Se variáveis não existem no modelo
+            
+        Example:
+            >>> # Resolver problema e salvar solução
+            >>> solucao1 = solver.resolve(dados)
+            >>> 
+            >>> # Criar novo modelo e usar solução como warm start
+            >>> modelo2 = criar_modelo(dados)
+            >>> solucao1.carrega_para_modelo_gurobi(modelo2, dados)
+            >>> modelo2.optimize()  # Mais rápido com warm start
+            
+        Note:
+            - Variáveis não mencionadas na solução são definidas como 0
+            - O modelo deve ter as mesmas variáveis que geraram a solução
+            - Útil para comparar soluções heurísticas com o ótimo
+            
+        See Also:
+            carrega_modelo_gurobi: Método inverso que extrai solução do modelo
+        """
+        
+        # Validar se a solução contém dados válidos
+        if not self.rota:
+            raise ValueError("Solução vazia. Não há dados para carregar.")
+
+        # Validar dados de entrada
+        if dados.K is None or dados.r is None or dados.n is None:
+            raise ValueError("Dados inválidos.")
+        
+        # Definição dos conjuntos de índices
+        K = range(1, dados.K + 1)
+        V = range(1, dados.r + 1)
+        N = range(1, dados.n + 1)
+        N0 = range(0, dados.n + 1)
+        
+        # Inicializar todas as variáveis com 0
+        for k in K:
+            for v in V:
+                # Variável y[v,k] - viagem ativa ou não
+                var_y = modelo.getVarByName(f"y_{v}_{k}")
+                if var_y is not None:
+                    # Viagem é ativa se existe rota não vazia
+                    if k in self.rota and v in self.rota[k] and self.rota[k][v]:
+                        var_y.Start = 1
+                    else:
+                        var_y.Start = 0
+                
+                # Variáveis x[i,j,v,k] - arcos
+                for i in N0:
+                    for j in N0:
+                        if i == j:
+                            continue
+                        
+                        var_x = modelo.getVarByName(f"x_{i}_{j}_{v}_{k}")
+                        if var_x is not None:
+                            var_x.Start = 0  # Inicializa como 0
+                
+                # Variáveis B[i,v,k] - tempos de chegada
+                for i in N0:
+                    var_B = modelo.getVarByName(f"B_{i}_{v}_{k}")
+                    if var_B is not None:
+                        var_B.Start = 0  # Inicializa como 0
+        
+        # Carregar valores da solução
+        for k in self.rota.keys():
+            for v in self.rota[k].keys():
+                rota = self.rota[k][v]
+                
+                # Pular viagens vazias
+                if not rota or len(rota) <= 1:
+                    continue
+                
+                # Definir y[v,k] = 1 para viagem ativa
+                var_y = modelo.getVarByName(f"y_{v}_{k}")
+                if var_y is not None:
+                    var_y.Start = 1
+                
+                # Definir x[i,j,v,k] = 1 para arcos da rota
+                for idx in range(len(rota) - 1):
+                    i = rota[idx]
+                    j = rota[idx + 1]
+                    
+                    var_x = modelo.getVarByName(f"x_{i}_{j}_{v}_{k}")
+                    if var_x is not None:
+                        var_x.Start = 1
+                
+                # Definir B[i,v,k] com tempos de chegada
+                if k in self.chegada and v in self.chegada[k]:
+                    tempos = self.chegada[k][v]
+                    
+                    for idx, i in enumerate(rota):
+                        if idx < len(tempos):
+                            var_B = modelo.getVarByName(f"B_{i}_{v}_{k}")
+                            if var_B is not None:
+                                var_B.Start = tempos[idx]
+        
+        # Atualizar modelo com os valores iniciais
+        modelo.update()
+
     def salvar(self, nome_arquivo: str) -> None:
         """
         Salva a solução em formato JSON para facilitar a análise e integração.
@@ -328,7 +460,7 @@ class Solucao:
             for v in V:
                 if self.rota[k][v]:  # Se a viagem v não está vazia
                     if not rota_completa:  # Primeira viagem
-                        rota_completa = self.rota[k][v]
+                        rota_completa = self.rota[k][v].copy()
                     else:  # Viagens subsequentes - remove o 0 inicial
                         rota_completa.extend(self.rota[k][v][1:])
             

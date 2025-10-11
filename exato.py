@@ -73,7 +73,8 @@ class Exato:
         """
         self.limite_tempo = limite_tempo
 
-    def resolve(self, dados: Dados, verbose: bool = True) -> Solucao:
+    def resolve(self, dados: Dados, verbose: bool = True, 
+                solucao_inicial: Optional[Solucao] = None) -> Solucao:
         """
         Resolve o problema de embarque remoto usando otimização exata (MILP).
         
@@ -96,6 +97,9 @@ class Exato:
                    janelas de tempo, etc.)
             verbose: Se True, imprime informações detalhadas do processo 
                      de otimização
+            solucao_inicial: Instância de Solucao para usar como 
+                             solução inicial (warm start). Se None, não 
+                             é usado warm start.
         
         Returns:
             Solucao: Objeto contendo a solução ótima ou melhor solução 
@@ -150,6 +154,9 @@ class Exato:
         self._restricao_fluxo(modelo, dados, M, K, V, N0, x, B)
 
         self._restricao_tempo_maximo(modelo, K, V, N, M, dados, x, y, B)
+        
+        if solucao_inicial is not None:
+            solucao_inicial.carrega_para_modelo_gurobi(modelo, dados)
 
         modelo.update()
 
@@ -748,7 +755,7 @@ if __name__ == "__main__":
     
     # Exibe resultados
     print(solucao)
-
+    
     # Salva solução
     # TODO: descomentar para salvar quando estiver implementado
     # solucao.salvar('resultado.json')
