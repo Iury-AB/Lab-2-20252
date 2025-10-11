@@ -1,7 +1,7 @@
 {
   "metadados": {
     "descricao": "Instância de embarque remoto de aeroporto com modelo de desembarque-embarque",
-    "data_geracao": "2025-10-10T17:49:05.132070",
+    "data_geracao": "2025-10-10T22:11:19.827787",
     "n_voos": 15,
     "capacidade_onibus": 55,
     "duracao_operacao_horas": 12,
@@ -59636,7 +59636,7 @@
       0.0
     ]
   ],
-  "tempoMaximoViagem": 60.0,
+  "tempoMaximoViagem": 240.0,
   "custo": [
     [
       0.0,
@@ -132855,6 +132855,6 @@
     "tempo_max_requisicao": 14.742803799127168,
     "tempo_preparacao_garagem": 10.0,
     "velocidade_operacao": 500,
-    "requisicoes_estimadas_por_viagem": 5.3
+    "requisicoes_estimadas_por_viagem": 21.1
   }
 }

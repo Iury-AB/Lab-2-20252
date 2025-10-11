@@ -745,17 +745,17 @@ if __name__ == "__main__":
     from dados import carrega_dados_json
     
     # Carrega instância do problema
-    dados = carrega_dados_json('./dados/pequena.json')
-    
+    instancia = 'pequena'
+    dados = carrega_dados_json(f'./dados/{instancia}.json')
+
     # Configura solver com limite de tempo de 60 segundos
-    metodo = Exato(limite_tempo=60)
+    metodo = Exato(limite_tempo=None)
     
     # Resolve o problema
-    solucao = metodo.resolve(dados, verbose=False)
+    solucao = metodo.resolve(dados, verbose=True)
     
     # Exibe resultados
     print(solucao)
     
     # Salva solução
-    # TODO: descomentar para salvar quando estiver implementado
-    # solucao.salvar('resultado.json')
+    solucao.salvar(f'./dados/otimo_{instancia}.json')
