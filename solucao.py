@@ -413,6 +413,97 @@ class Solucao:
         except IOError as e:
             print(f"Erro ao salvar a solução em JSON: {e}")
 
+    def carregar(self, nome_arquivo: str) -> None:
+        """
+        Carrega uma solução previamente salva de um arquivo JSON.
+        
+        Este método é o inverso de salvar(), permitindo recuperar uma
+        solução armazenada em formato JSON e reconstruir todas as estruturas
+        internas da classe (rotas, arcos, tempos de chegada e função objetivo).
+        
+        O método valida a estrutura do JSON e reconstrói os dicionários
+        internos mantendo os tipos de dados corretos (int para índices,
+        float para tempos).
+        
+        Args:
+            nome_arquivo (str): Caminho do arquivo JSON contendo a solução
+            
+        Returns:
+            None: Atualiza os atributos internos da instância
+            
+        Raises:
+            FileNotFoundError: Se o arquivo especificado não existe
+            json.JSONDecodeError: Se o arquivo não contém JSON válido
+            KeyError: Se a estrutura do JSON está incorreta
+            
+        Example:
+            >>> solucao = Solucao()
+            >>> solucao.carregar("resultado.json")
+            >>> print(f"Custo carregado: {solucao.fx}")
+            >>> print(solucao)
+            
+        Note:
+            - O arquivo deve ter sido gerado pelo método salvar()
+            - Chaves numéricas são convertidas de strings para inteiros
+            - Tuplas de arcos são reconstruídas a partir de listas
+            
+        See Also:
+            salvar: Método que serializa a solução em JSON
+        """
+        
+        try:
+            # Carregar dados do arquivo JSON
+            with open(nome_arquivo, 'r', encoding='utf-8') as f:
+                dados_json = json.load(f)
+            
+            # Limpar estruturas existentes
+            self.rota = {}
+            self.arcos = {}
+            self.chegada = {}
+            
+            # Carregar função objetivo
+            self.fx = dados_json.get("fx")
+            
+            # Reconstruir estruturas de dados
+            onibus_data = dados_json.get("onibus", {})
+            
+            for k_str, viagens_data in onibus_data.items():
+                k = int(k_str)  # Converter chave de string para int
+                
+                # Inicializar estruturas para o ônibus k
+                self.rota[k] = {}
+                self.arcos[k] = {}
+                self.chegada[k] = {}
+                
+                for viagem_str, viagem_data in viagens_data.items():
+                    # Extrair número da viagem (formato: "viagem_v")
+                    v = int(viagem_str.split('_')[1])
+                    
+                    # Carregar rota
+                    self.rota[k][v] = viagem_data.get("rota", [])
+                    
+                    # Carregar arcos (converter listas em tuplas)
+                    arcos_lista = viagem_data.get("arcos", [])
+                    self.arcos[k][v] = [tuple(arco) for arco in arcos_lista]
+                    
+                    # Carregar tempos de chegada
+                    self.chegada[k][v] = viagem_data.get("chegada", [])
+            
+            print(f"Solução carregada com sucesso de {nome_arquivo}")
+            
+        except FileNotFoundError:
+            print(f"Erro: Arquivo '{nome_arquivo}' não encontrado.")
+            raise
+        except json.JSONDecodeError as e:
+            print(f"Erro ao decodificar JSON: {e}")
+            raise
+        except (KeyError, ValueError) as e:
+            print(f"Erro na estrutura do arquivo JSON: {e}")
+            raise
+        except Exception as e:
+            print(f"Erro inesperado ao carregar solução: {e}")
+            raise
+
     def __str__(self) -> str:
         """
         Retorna representação formatada da solução para visualização.
