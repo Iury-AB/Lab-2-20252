@@ -30,7 +30,7 @@ repeat (iter = 1 até MaxIter)
                 i ← ÚltimaRequisição(Rota(k,v)); 
                 j ← SelecionaPróximaRequisição(Qk,i, FeromônioRoute, AtratividadeRoute);
                 If Bjkv > Tmax - Ti0v
-                    Inserir(garagem após i, v) // ENcerra a viagem
+                    Inserir(garagem após i, v) // Encerra a viagem
                     v ← v + 1
                     Rota(k,v) ← [garagem]; 
                     i ← ÚltimaRequisição(Rota(k,v)); 
