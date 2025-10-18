@@ -116,5 +116,12 @@ for i in range(instancia_pequena.n):
         if i == j:
             continue
         grafo_requisicoes.add_edge(requisicoes[i], requisicoes[j], instancia_pequena.c[i][j])
+
+maxIter = 1000
+formigas = 3
+
+for iter in range(maxIter):
+    for formiga in range(formigas):
+        Q = requisicoes
+        Q_onibus = [[] for _ in range(instancia_pequena.K)]
         
-print(grafo_requisicoes)
