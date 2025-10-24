@@ -745,7 +745,7 @@ if __name__ == "__main__":
     from dados import carrega_dados_json
     
     # Carrega instância do problema
-    instancia = 'media'  # Opções: 'pequena', 'media', 'grande', 'rush'
+    instancia = 'pequena'  # Opções: 'pequena', 'media', 'grande', 'rush'
     dados = carrega_dados_json(f'./dados/{instancia}.json')
 
     # Configura solver com limite de tempo de 3 dias
