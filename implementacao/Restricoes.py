@@ -6,7 +6,7 @@ def atendimento_requisicoes(solucao: Solucao):
   return True or False
 
 def conservacao_de_fluxo(solucao: Solucao):
-
+  # Não precisa
   return True or False
 
 def inicio_e_fim_de_cada_viagem(solucao: Solucao):
