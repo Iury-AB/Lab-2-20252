@@ -1,10 +1,10 @@
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'exemplo_prof'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from exemplo_prof import dados
-from exemplo_prof import solucao as sol
+from exemplo_prof.dados import Dados, carrega_dados_json
+from exemplo_prof.solucao import Solucao
 import numpy as np
 import implementacao.grafo as grafo
 
@@ -21,14 +21,14 @@ class Requisicao:
        # Comparacao entre requisicoes, a "menor" é a que abre a janela mais cedo
        return self.e < other.e
     
-def le_requisicoes(instancia: dados.Dados):
+def le_requisicoes(instancia: Dados):
     requisicoes = []
     for requisicao in range(instancia.n):
         r = Requisicao(instancia.e[requisicao], instancia.l[requisicao])
         requisicoes.append(r)
     return requisicoes
 
-def f_objetivo(solucao: sol.Solucao, instancia: dados.Dados):
+def f_objetivo(solucao: Solucao, instancia: Dados):
     custo = 0
     for k, viagens in solucao.arcos.items():
         for v, lista_arcos in viagens.items():
@@ -38,38 +38,51 @@ def f_objetivo(solucao: sol.Solucao, instancia: dados.Dados):
     solucao.fx = custo
     return custo
 
-def Constroi_solucao_inicial(instancia: dados.Dados):
-   requisicoes = le_requisicoes(instancia)
-   req_ordenadas = requisicoes.sorted()
-   solucao = sol.Solucao()
+def Constroi_solucao_inicial(instancia: Dados):
+  requisicoes = le_requisicoes(instancia)
+  requisicoes_ordenadas = [i+1 for i, _ in sorted(enumerate(requisicoes), key=lambda x: x[1])]
+  solucao = Solucao()
+  solucao.rota = {k: {v: [] for v in range(instancia.r)} for k in range(instancia.K)}
+  solucao.chegada = {k: {v: [] for v in range(instancia.r)} for k in range(instancia.K)}
+  solucao.arcos = {k: {v: [] for v in range(instancia.r)} for k in range(instancia.K)}
 
-   onibus = 0
-   viagem = 0
-
-   for requisicao in req_ordenadas:
+  for requisicao in requisicoes_ordenadas:
     atribuida = False
-    for onibus in range(instancia.K):
-        for viagem in range(instancia.r):
-            ultima_req = solucao.rota[onibus].get(viagem, [0])[-1]
-            ultimo_tempo = solucao.chegada[onibus].get(viagem, [0])[-1]
+    for viagem in range(instancia.r):
+      for onibus in range(instancia.K): 
+          if not solucao.rota[onibus][viagem]:
+            solucao.rota[onibus][viagem].append(0)
+            solucao.chegada[onibus][viagem].append(0)
 
-            tempo_chegada = ultimo_tempo + instancia.T[ultima_req][requisicao.id]
-            if tempo_chegada <= requisicao.l:
-                # inicializa viagem se não existir
-                if viagem not in solucao.rota[onibus]:
-                    solucao.rota[onibus][viagem] = [0]
-                    solucao.chegada[onibus][viagem] = [0]
+          ultima_req = solucao.rota[onibus][viagem][-1]
+          ultimo_tempo = solucao.chegada[onibus][viagem][-1]
 
-                solucao.rota[onibus][viagem].append(requisicao.id)
-                solucao.chegada[onibus][viagem].append(max(requisicao.e, tempo_chegada))
-                atribuida = True
-                break
-        if atribuida:
+          tempo_chegada = ultimo_tempo + instancia.s[requisicao] + instancia.T[ultima_req][requisicao]
+          if tempo_chegada <= requisicoes[requisicao-1].l:
+            # inicializa viagem se não existir
+            if viagem not in solucao.rota[onibus]:
+              solucao.rota[onibus][viagem] = [0]
+              solucao.chegada[onibus][viagem] = [0]
+
+            solucao.rota[onibus][viagem].append(requisicao)
+            solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao-1].e, tempo_chegada))
+            solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
+            atribuida = True
             break
-    if not atribuida:
-        print(f"Requisição {requisicao.id} não pôde ser atribuída.")
+          else:
+            continue
+      if atribuida:
+          break
+      
+  for viagem in range(instancia.r):
+     for onibus in range(instancia.K):
+        if solucao.rota[onibus][viagem]:
+          ultima_req = solucao.rota[onibus][viagem][-1]
+          solucao.rota[onibus][viagem].append(0)
+          solucao.arcos[onibus][viagem].append((ultima_req, 0))
+          solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.c[ultima_req][0])
 
-   return solucao
+  return solucao
 
 def Inicializar_feromonio (grafo: grafo.Graph):
   vertices = grafo.get_vertex()
@@ -77,25 +90,9 @@ def Inicializar_feromonio (grafo: grafo.Graph):
   matriz_feromonios = np.zeros((n,n))
   return matriz_feromonios
 
-instancia_pequena = dados.carrega_dados_json("dados/pequena.json")
+instancia_pequena = carrega_dados_json("dados/pequena.json")
 
-requisicoes = le_requisicoes(instancia_pequena)
+solucao_inicial = Constroi_solucao_inicial(instancia_pequena)
 
-grafo_requisicoes = grafo.Graph()
-
-for i in range(instancia_pequena.n):
-    for j in range(instancia_pequena.n):
-        if i == j:
-            continue
-        grafo_requisicoes.add_edge(requisicoes[i], requisicoes[j], instancia_pequena.c[i][j])
-
-maxIter = 1000
-formigas = 3
-
-feromonios = Inicializar_feromonio(grafo_requisicoes)
-
-for iter in range(maxIter):
-    for formiga in range(formigas):
-        Q = requisicoes
-        Q_onibus = [[] for _ in range(instancia_pequena.K)]
-    
+print(solucao_inicial)
+print(f_objetivo(solucao_inicial, instancia_pequena))
