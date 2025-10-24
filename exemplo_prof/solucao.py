@@ -24,7 +24,7 @@ Data: Setembro 2025
 """
 
 import gurobipy as gp
-from exemplo_prof.dados import Dados
+from dados import Dados
 from typing import Dict, List, Optional, Any
 import json
 
