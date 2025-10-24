@@ -46,9 +46,6 @@ class Solucao:
         rota (Dict[int, Dict[int, List[int]]]): 
             Rotas por ônibus e viagem. rota[k][v] = [0, req1, req2, ..., 0]
             
-        arcos (Dict[int, Dict[int, List[tuple]]]): 
-            Arcos utilizados por ônibus e viagem. arcos[k][v] = [(i,j), ...]
-            
         chegada (Dict[int, Dict[int, List[float]]]): 
             Tempos de chegada por ônibus e viagem. chegada[k][v] = [t0, t1, ...]
             
@@ -76,12 +73,10 @@ class Solucao:
         
         Inicialização:
             - rota: Dicionário vazio para armazenar rotas
-            - arcos: Dicionário vazio para armazenar arcos utilizados  
             - chegada: Dicionário vazio para tempos de chegada
             - fx: None (será definido após carregamento do modelo)
         """
         self.rota: Dict[int, Dict[int, List[int]]] = {}
-        self.arcos: Dict[int, Dict[int, List[tuple]]] = {}
         self.chegada: Dict[int, Dict[int, List[float]]] = {}
         self.fx: Optional[float] = None
 
@@ -124,7 +119,6 @@ class Solucao:
             
         Side Effects:
             - Preenche self.rota com rotas de todos os ônibus
-            - Preenche self.arcos com arcos utilizados
             - Preenche self.chegada com tempos de chegada
             - Define self.fx com valor da função objetivo
             
@@ -157,7 +151,6 @@ class Solucao:
 
             # Inicialização das estruturas para o ônibus k
             self.rota[k] = {}
-            self.arcos[k] = {}
             self.chegada[k] = {}
 
             # Iteração sobre todas as viagens possíveis do ônibus k
@@ -165,7 +158,6 @@ class Solucao:
 
                 # Inicialização das estruturas para a viagem v do ônibus k
                 self.rota[k][v] = []
-                self.arcos[k][v] = []
                 self.chegada[k][v] = []
 
                 # Extração dos arcos ativos (variáveis x[i,j,v,k] = 1)
@@ -206,13 +198,16 @@ class Solucao:
                 self.rota[k][v] = rota  # Armazenar rota construída
 
                 # Extração dos tempos de chegada em cada ponto da rota
-                instantes = [0.]  # Tempo inicial na garagem = 0
+                instantes = []
                 for requisicao in rota[1:]:  # Para cada ponto da rota (exceto primeiro 0)
                     # Obter tempo de chegada da variável B[requisicao,v,k]
                     var_B = modelo.getVarByName(f"B_{requisicao}_{v}_{k}")
                     if var_B is not None:
                         B = var_B.X
                         instantes.append(B)
+                        if requisicao == rota[1]:
+                            tempo_saida_garagem = B - dados.T[0][requisicao] - dados.s[0]
+                            instantes.insert(0, tempo_saida_garagem)
 
                 self.chegada[k][v] = instantes  # Armazenar tempos de chegada
 
@@ -366,7 +361,6 @@ class Solucao:
             "k": {
                 "viagem_v": {
                 "rota": [0, req1, req2, ..., 0],
-                "arcos": [[i, j], [j, k], ...],
                 "chegada": [t0, t1, t2, ...]
                 }
             }
@@ -401,8 +395,6 @@ class Solucao:
                 if self.rota[k][v]:  # Apenas viagens não vazias
                     dados_json["onibus"][str(k)][f"viagem_{v}"] = {
                     "rota": self.rota[k][v],
-                    "arcos": list(self.arcos[k][v]) if k in self.arcos and v in 
-                    self.arcos[k] else [],
                     "chegada": self.chegada[k][v] if k in self.chegada and v in 
                     self.chegada[k] else []
                     }
@@ -445,7 +437,6 @@ class Solucao:
         Note:
             - O arquivo deve ter sido gerado pelo método salvar()
             - Chaves numéricas são convertidas de strings para inteiros
-            - Tuplas de arcos são reconstruídas a partir de listas
             
         See Also:
             salvar: Método que serializa a solução em JSON
@@ -458,7 +449,6 @@ class Solucao:
             
             # Limpar estruturas existentes
             self.rota = {}
-            self.arcos = {}
             self.chegada = {}
             
             # Carregar função objetivo
@@ -472,7 +462,6 @@ class Solucao:
                 
                 # Inicializar estruturas para o ônibus k
                 self.rota[k] = {}
-                self.arcos[k] = {}
                 self.chegada[k] = {}
                 
                 for viagem_str, viagem_data in viagens_data.items():
@@ -481,10 +470,6 @@ class Solucao:
                     
                     # Carregar rota
                     self.rota[k][v] = viagem_data.get("rota", [])
-                    
-                    # Carregar arcos (converter listas em tuplas)
-                    arcos_lista = viagem_data.get("arcos", [])
-                    self.arcos[k][v] = [tuple(arco) for arco in arcos_lista]
                     
                     # Carregar tempos de chegada
                     self.chegada[k][v] = viagem_data.get("chegada", [])

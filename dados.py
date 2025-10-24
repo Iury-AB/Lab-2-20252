@@ -109,9 +109,7 @@ class Dados:
 Requisições: {self.n}
 Ônibus: {self.K}
 Máximo de viagens por ônibus: {self.r}
-Capacidade total de viagens: {capacidade_total if capacidade_total else 'N/A'}
 Tempo máximo por viagem: {self.Tmax:.1f} min
-Utilização estimada: {utilizacao_str}
 ==============================================="""
     
     def __repr__(self) -> str:
