@@ -1,9 +1,9 @@
 """
 Módulo de Representação de Soluções para o Problema de Embarque Remoto
 
-Este módulo contém a classe Solucao, responsável por armazenar e organizar
-os resultados obtidos pela resolução do problema de otimização de rotas
-de ônibus em aeroportos com embarque remoto.
+Este módulo contém a classe Solucao, responsável por armazenar e 
+organizar os resultados obtidos pela resolução do problema de otimização 
+de rotas de ônibus em aeroportos com embarque remoto.
 
 A classe encapsula:
 - Rotas detalhadas de cada ônibus por viagem
@@ -46,9 +46,6 @@ class Solucao:
         rota (Dict[int, Dict[int, List[int]]]): 
             Rotas por ônibus e viagem. rota[k][v] = [0, req1, req2, ..., 0]
             
-        arcos (Dict[int, Dict[int, List[tuple]]]): 
-            Arcos utilizados por ônibus e viagem. arcos[k][v] = [(i,j), ...]
-            
         chegada (Dict[int, Dict[int, List[float]]]): 
             Tempos de chegada por ônibus e viagem. chegada[k][v] = [t0, t1, ...]
             
@@ -76,12 +73,10 @@ class Solucao:
         
         Inicialização:
             - rota: Dicionário vazio para armazenar rotas
-            - arcos: Dicionário vazio para armazenar arcos utilizados  
             - chegada: Dicionário vazio para tempos de chegada
             - fx: None (será definido após carregamento do modelo)
         """
         self.rota: Dict[int, Dict[int, List[int]]] = {}
-        self.arcos: Dict[int, Dict[int, List[tuple]]] = {}
         self.chegada: Dict[int, Dict[int, List[float]]] = {}
         self.fx: Optional[float] = None
 
@@ -124,7 +119,6 @@ class Solucao:
             
         Side Effects:
             - Preenche self.rota com rotas de todos os ônibus
-            - Preenche self.arcos com arcos utilizados
             - Preenche self.chegada com tempos de chegada
             - Define self.fx com valor da função objetivo
             
@@ -157,7 +151,6 @@ class Solucao:
 
             # Inicialização das estruturas para o ônibus k
             self.rota[k] = {}
-            self.arcos[k] = {}
             self.chegada[k] = {}
 
             # Iteração sobre todas as viagens possíveis do ônibus k
@@ -165,7 +158,6 @@ class Solucao:
 
                 # Inicialização das estruturas para a viagem v do ônibus k
                 self.rota[k][v] = []
-                self.arcos[k][v] = []
                 self.chegada[k][v] = []
 
                 # Extração dos arcos ativos (variáveis x[i,j,v,k] = 1)
@@ -206,18 +198,153 @@ class Solucao:
                 self.rota[k][v] = rota  # Armazenar rota construída
 
                 # Extração dos tempos de chegada em cada ponto da rota
-                instantes = [0.]  # Tempo inicial na garagem = 0
+                instantes = []
                 for requisicao in rota[1:]:  # Para cada ponto da rota (exceto primeiro 0)
                     # Obter tempo de chegada da variável B[requisicao,v,k]
                     var_B = modelo.getVarByName(f"B_{requisicao}_{v}_{k}")
                     if var_B is not None:
                         B = var_B.X
                         instantes.append(B)
+                        if requisicao == rota[1]:
+                            tempo_saida_garagem = B - dados.T[0][requisicao] - dados.s[0]
+                            instantes.insert(0, tempo_saida_garagem)
 
                 self.chegada[k][v] = instantes  # Armazenar tempos de chegada
 
         # Armazenar valor da função objetivo (custo total da solução)
         self.fx = modelo.ObjVal
+
+    def carrega_para_modelo_gurobi(self, modelo: gp.Model, dados: Dados) -> None:
+        """
+        Carrega a solução atual para as variáveis de um modelo Gurobi.
+        
+        Este método é o inverso de carrega_modelo_gurobi(), permitindo
+        que uma solução armazenada seja recarregada em um modelo Gurobi
+        para uso como ponto inicial (warm start) ou para validação.
+        
+        Processo de carregamento:
+        1. Valida se a solução contém dados
+        2. Obtém conjuntos de índices dos dados
+        3. Para cada ônibus e viagem:
+        - Identifica arcos da rota
+        - Define x[i,j,v,k] = 1 para arcos utilizados
+        - Define x[i,j,v,k] = 0 para arcos não utilizados
+        - Define y[v,k] = 1 se viagem é utilizada
+        - Define B[i,v,k] com tempos de chegada
+        4. Atualiza o modelo com os valores
+        
+        Aplicações:
+        - Warm start: acelerar resolução fornecendo solução inicial
+        - Validação: verificar factibilidade de solução construída
+        - Debugging: comparar soluções manualmente construídas
+        - Resolução iterativa: usar solução anterior como ponto de partida
+        
+        Args:
+            modelo: Modelo Gurobi onde carregar a solução
+            dados: Instância original contendo dimensões do problema
+            
+        Returns:
+            None: Modifica as variáveis do modelo diretamente
+            
+        Raises:
+            ValueError: Se a solução está vazia ou dados são inconsistentes
+            AttributeError: Se variáveis não existem no modelo
+            
+        Example:
+            >>> # Resolver problema e salvar solução
+            >>> solucao1 = solver.resolve(dados)
+            >>> 
+            >>> # Criar novo modelo e usar solução como warm start
+            >>> modelo2 = criar_modelo(dados)
+            >>> solucao1.carrega_para_modelo_gurobi(modelo2, dados)
+            >>> modelo2.optimize()  # Mais rápido com warm start
+            
+        Note:
+            - Variáveis não mencionadas na solução são definidas como 0
+            - O modelo deve ter as mesmas variáveis que geraram a solução
+            - Útil para comparar soluções heurísticas com o ótimo
+            
+        See Also:
+            carrega_modelo_gurobi: Método inverso que extrai solução do modelo
+        """
+        
+        # Validar se a solução contém dados válidos
+        if not self.rota:
+            raise ValueError("Solução vazia. Não há dados para carregar.")
+
+        # Validar dados de entrada
+        if dados.K is None or dados.r is None or dados.n is None:
+            raise ValueError("Dados inválidos.")
+        
+        # Definição dos conjuntos de índices
+        K = range(1, dados.K + 1)
+        V = range(1, dados.r + 1)
+        N = range(1, dados.n + 1)
+        N0 = range(0, dados.n + 1)
+        
+        # Inicializar todas as variáveis com 0
+        for k in K:
+            for v in V:
+                # Variável y[v,k] - viagem ativa ou não
+                var_y = modelo.getVarByName(f"y_{v}_{k}")
+                if var_y is not None:
+                    # Viagem é ativa se existe rota não vazia
+                    if k in self.rota and v in self.rota[k] and self.rota[k][v]:
+                        var_y.Start = 1
+                    else:
+                        var_y.Start = 0
+                
+                # Variáveis x[i,j,v,k] - arcos
+                for i in N0:
+                    for j in N0:
+                        if i == j:
+                            continue
+                        
+                        var_x = modelo.getVarByName(f"x_{i}_{j}_{v}_{k}")
+                        if var_x is not None:
+                            var_x.Start = 0  # Inicializa como 0
+                
+                # Variáveis B[i,v,k] - tempos de chegada
+                for i in N0:
+                    var_B = modelo.getVarByName(f"B_{i}_{v}_{k}")
+                    if var_B is not None:
+                        var_B.Start = 0  # Inicializa como 0
+        
+        # Carregar valores da solução
+        for k in self.rota.keys():
+            for v in self.rota[k].keys():
+                rota = self.rota[k][v]
+                
+                # Pular viagens vazias
+                if not rota or len(rota) <= 1:
+                    continue
+                
+                # Definir y[v,k] = 1 para viagem ativa
+                var_y = modelo.getVarByName(f"y_{v}_{k}")
+                if var_y is not None:
+                    var_y.Start = 1
+                
+                # Definir x[i,j,v,k] = 1 para arcos da rota
+                for idx in range(len(rota) - 1):
+                    i = rota[idx]
+                    j = rota[idx + 1]
+                    
+                    var_x = modelo.getVarByName(f"x_{i}_{j}_{v}_{k}")
+                    if var_x is not None:
+                        var_x.Start = 1
+                
+                # Definir B[i,v,k] com tempos de chegada
+                if k in self.chegada and v in self.chegada[k]:
+                    tempos = self.chegada[k][v]
+                    
+                    for idx, i in enumerate(rota):
+                        if idx < len(tempos):
+                            var_B = modelo.getVarByName(f"B_{i}_{v}_{k}")
+                            if var_B is not None:
+                                var_B.Start = tempos[idx]
+        
+        # Atualizar modelo com os valores iniciais
+        modelo.update()
 
     def salvar(self, nome_arquivo: str) -> None:
         """
@@ -234,7 +361,6 @@ class Solucao:
             "k": {
                 "viagem_v": {
                 "rota": [0, req1, req2, ..., 0],
-                "arcos": [[i, j], [j, k], ...],
                 "chegada": [t0, t1, t2, ...]
                 }
             }
@@ -269,8 +395,8 @@ class Solucao:
                 if self.rota[k][v]:  # Apenas viagens não vazias
                     dados_json["onibus"][str(k)][f"viagem_{v}"] = {
                     "rota": self.rota[k][v],
-                    "arcos": list(self.arcos[k][v]) if k in self.arcos and v in self.arcos[k] else [],
-                    "chegada": self.chegada[k][v] if k in self.chegada and v in self.chegada[k] else []
+                    "chegada": self.chegada[k][v] if k in self.chegada and v in 
+                    self.chegada[k] else []
                     }
         
         try:
@@ -278,6 +404,90 @@ class Solucao:
                 json.dump(dados_json, f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Erro ao salvar a solução em JSON: {e}")
+
+    def carregar(self, nome_arquivo: str) -> None:
+        """
+        Carrega uma solução previamente salva de um arquivo JSON.
+        
+        Este método é o inverso de salvar(), permitindo recuperar uma
+        solução armazenada em formato JSON e reconstruir todas as estruturas
+        internas da classe (rotas, arcos, tempos de chegada e função objetivo).
+        
+        O método valida a estrutura do JSON e reconstrói os dicionários
+        internos mantendo os tipos de dados corretos (int para índices,
+        float para tempos).
+        
+        Args:
+            nome_arquivo (str): Caminho do arquivo JSON contendo a solução
+            
+        Returns:
+            None: Atualiza os atributos internos da instância
+            
+        Raises:
+            FileNotFoundError: Se o arquivo especificado não existe
+            json.JSONDecodeError: Se o arquivo não contém JSON válido
+            KeyError: Se a estrutura do JSON está incorreta
+            
+        Example:
+            >>> solucao = Solucao()
+            >>> solucao.carregar("resultado.json")
+            >>> print(f"Custo carregado: {solucao.fx}")
+            >>> print(solucao)
+            
+        Note:
+            - O arquivo deve ter sido gerado pelo método salvar()
+            - Chaves numéricas são convertidas de strings para inteiros
+            
+        See Also:
+            salvar: Método que serializa a solução em JSON
+        """
+        
+        try:
+            # Carregar dados do arquivo JSON
+            with open(nome_arquivo, 'r', encoding='utf-8') as f:
+                dados_json = json.load(f)
+            
+            # Limpar estruturas existentes
+            self.rota = {}
+            self.chegada = {}
+            
+            # Carregar função objetivo
+            self.fx = dados_json.get("fx")
+            
+            # Reconstruir estruturas de dados
+            onibus_data = dados_json.get("onibus", {})
+            
+            for k_str, viagens_data in onibus_data.items():
+                k = int(k_str)  # Converter chave de string para int
+                
+                # Inicializar estruturas para o ônibus k
+                self.rota[k] = {}
+                self.chegada[k] = {}
+                
+                for viagem_str, viagem_data in viagens_data.items():
+                    # Extrair número da viagem (formato: "viagem_v")
+                    v = int(viagem_str.split('_')[1])
+                    
+                    # Carregar rota
+                    self.rota[k][v] = viagem_data.get("rota", [])
+                    
+                    # Carregar tempos de chegada
+                    self.chegada[k][v] = viagem_data.get("chegada", [])
+            
+            print(f"Solução carregada com sucesso de {nome_arquivo}")
+            
+        except FileNotFoundError:
+            print(f"Erro: Arquivo '{nome_arquivo}' não encontrado.")
+            raise
+        except json.JSONDecodeError as e:
+            print(f"Erro ao decodificar JSON: {e}")
+            raise
+        except (KeyError, ValueError) as e:
+            print(f"Erro na estrutura do arquivo JSON: {e}")
+            raise
+        except Exception as e:
+            print(f"Erro inesperado ao carregar solução: {e}")
+            raise
 
     def __str__(self) -> str:
         """
@@ -326,7 +536,7 @@ class Solucao:
             for v in V:
                 if self.rota[k][v]:  # Se a viagem v não está vazia
                     if not rota_completa:  # Primeira viagem
-                        rota_completa = self.rota[k][v]
+                        rota_completa = self.rota[k][v].copy()
                     else:  # Viagens subsequentes - remove o 0 inicial
                         rota_completa.extend(self.rota[k][v][1:])
             

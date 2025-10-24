@@ -155,6 +155,7 @@ dmypy.json
 *.figlist
 *.makelist
 *.fls_latexmk
+*.vrb
 
 # LaTeX build directories
 latex.out/
