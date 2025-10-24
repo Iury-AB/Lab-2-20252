@@ -58,7 +58,7 @@ def Constroi_solucao_inicial(instancia: Dados):
           ultimo_tempo = solucao.chegada[onibus][viagem][-1]
 
           tempo_chegada = ultimo_tempo + instancia.s[requisicao] + instancia.T[ultima_req][requisicao]
-          if tempo_chegada <= requisicoes[requisicao-1].l:
+          if tempo_chegada <= requisicoes[requisicao-1].l and tempo_chegada + instancia.s[requisicao] <= instancia.Tmax - instancia.T[ultima_req][0]:
             # inicializa viagem se não existir
             if viagem not in solucao.rota[onibus]:
               solucao.rota[onibus][viagem] = [0]
@@ -80,7 +80,7 @@ def Constroi_solucao_inicial(instancia: Dados):
           ultima_req = solucao.rota[onibus][viagem][-1]
           solucao.rota[onibus][viagem].append(0)
           solucao.arcos[onibus][viagem].append((ultima_req, 0))
-          solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.c[ultima_req][0])
+          solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.c[ultima_req][0] + instancia.s[0])
 
   return solucao
 
