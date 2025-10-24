@@ -53,6 +53,28 @@ Este documento estabelece o padrão que deve ser seguido por todos os grupos par
 
 O critério de parada adotado para todos os algoritmos será o \textbf{número de avaliações da função objetivo}. Isso garante uma comparação justa entre diferentes abordagens. Uma avaliação da função objetivo é uma execução da função do seu código que calcula o valor da função objetivo para uma solução candidata. Então, toda vez que seu código chamar essa função, deve ser contado como uma avaliação. O algoritmo deve parar quando atingir o número máximo de avaliações especificado e retornar a melhor solução encontrada até então. Eu vou ler o código das implementações para verificar se esse critério está sendo respeitado corretamente.
 
+Quem for utilizar o Gurobi como forma de busca local, deve somar ao número de avaliações os seguintes parâmetros do objeto de modelo do Gurobi: \texttt{NodeCount} e \texttt{IterCount}. Para controlar uma execução do Gurobi de modo que respeite um número máximo para esses parâmetros, você pode utilizar o seguinte código:
+\begin{lstlisting}[language=Python]
+from gurobipy import Model, GRB
+model = Model()
+
+# Configurar o modelo aqui
+
+# Definir limites maximos
+model.setParam(GRB.Param.NodeLimit, max_node_count)
+model.setParam(GRB.Param.IterationLimit, max_iter_count)
+
+# Otimizar
+model.optimize()
+
+# Apos a otimizacao, recuperar os valores usados
+nos_explorados = modelo.NodeCount
+iteracoes_usadas = modelo.IterCount
+
+# Calcular total de avaliacoes equivalentes
+total_avaliacoes = nos_explorados + iteracoes_usadas
+\end{lstlisting}
+
 \section{Estrutura da Entrega}
 
 \subsection{Formato do Arquivo}

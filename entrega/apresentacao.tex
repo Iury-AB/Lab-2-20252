@@ -85,24 +85,24 @@
         Critério único para todos os algoritmos
     \end{block}
     
-    \vspace{0.3cm}
-    
     \textbf{O que conta como uma avaliação?}
     \begin{itemize}
         \item Cada chamada à função que calcula o valor da função objetivo
         \item Deve ser contabilizada explicitamente no código
     \end{itemize}
     
-    \vspace{0.3cm}
-    
     \textbf{Quando parar?}
     \begin{itemize}
         \item Ao atingir o número máximo de avaliações especificado
         \item Retornar a \textbf{melhor solução encontrada} até então
     \end{itemize}
-    
-    \vspace{0.3cm}
-    
+
+    \textbf{E quem for usar o Gurobi como busca local?}
+    \begin{itemize}
+        \item Controlar os seguintes parâmetros do Gurobi: \texttt{NodeLimit} e \texttt{IterationLimit}
+        \item Somar ao número corrente de avaliações após a execução do Gurobi os seguintes valores: \texttt{NodeCount} e \texttt{IterCount}
+    \end{itemize}
+
     \begin{alertblock}{Verificação}
         O código será revisado para verificar o correto controle de avaliações!
     \end{alertblock}
