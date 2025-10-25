@@ -3,7 +3,6 @@ from exemplo_prof.solucao import Solucao
 
 def atendimento_requisicoes(solucao: Solucao, dados: Dados):
   # cada requisição deve ser atendida exatamente uma vez
-  # comentario a mais
   return True or False
 
 def conservacao_de_fluxo(solucao: Solucao, dados: Dados):
