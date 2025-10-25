@@ -7,6 +7,7 @@ from exemplo_prof.dados import Dados, carrega_dados_json
 from exemplo_prof.solucao import Solucao
 import numpy as np
 import implementacao.grafo as grafo
+import Restricoes as res
 
 class Requisicao:
     def __init__(self, e, l):
@@ -50,27 +51,27 @@ def Constroi_solucao_inicial(instancia: Dados):
     atribuida = False
     for viagem in range(instancia.r):
       for onibus in range(instancia.K): 
-          if not solucao.rota[onibus][viagem]:
-            solucao.rota[onibus][viagem].append(0)
-            solucao.chegada[onibus][viagem].append(0)
+        if not solucao.rota[onibus][viagem]:
+          solucao.rota[onibus][viagem].append(0)
+          solucao.chegada[onibus][viagem].append(0)
 
-          ultima_req = solucao.rota[onibus][viagem][-1]
-          ultimo_tempo = solucao.chegada[onibus][viagem][-1]
+        ultima_req = solucao.rota[onibus][viagem][-1]
+        ultimo_tempo = solucao.chegada[onibus][viagem][-1]
 
-          tempo_chegada = ultimo_tempo + instancia.s[requisicao] + instancia.T[ultima_req][requisicao]
-          if tempo_chegada <= requisicoes[requisicao-1].l and tempo_chegada + instancia.s[requisicao] <= instancia.Tmax - instancia.T[ultima_req][0]:
-            # inicializa viagem se não existir
-            if viagem not in solucao.rota[onibus]:
-              solucao.rota[onibus][viagem] = [0]
-              solucao.chegada[onibus][viagem] = [0]
+        tempo_chegada = ultimo_tempo + instancia.s[requisicao] + instancia.T[ultima_req][requisicao]
+        if tempo_chegada <= requisicoes[requisicao-1].l and tempo_chegada + instancia.s[requisicao] <= instancia.Tmax - instancia.T[ultima_req][0]:
+          # inicializa viagem se não existir
+          if viagem not in solucao.rota[onibus]:
+            solucao.rota[onibus][viagem] = [0]
+            solucao.chegada[onibus][viagem] = [0]
 
-            solucao.rota[onibus][viagem].append(requisicao)
-            solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao-1].e, tempo_chegada))
-            solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
-            atribuida = True
-            break
-          else:
-            continue
+          solucao.rota[onibus][viagem].append(requisicao)
+          solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao-1].e, tempo_chegada))
+          solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
+          atribuida = True
+          break
+        else:
+          continue
       if atribuida:
           break
       
@@ -96,3 +97,9 @@ solucao_inicial = Constroi_solucao_inicial(instancia_pequena)
 
 print(solucao_inicial)
 print(f_objetivo(solucao_inicial, instancia_pequena))
+print(res.atendimento_requisicoes(solucao_inicial, instancia_pequena))
+print(res.inicio_e_fim_de_cada_viagem(solucao_inicial, instancia_pequena))
+print(res.janela_de_tempo_da_coleta(solucao_inicial, instancia_pequena))
+print(res.sequencia_temporal_das_rotas_intra(solucao_inicial, instancia_pequena))
+print(res.Sequencia_temporal_das_rotas_inter(solucao_inicial, instancia_pequena))
+print(res.limite_de_tempo_por_viagem(solucao_inicial, instancia_pequena))
