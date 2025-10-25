@@ -30,6 +30,52 @@ def validar_solucao(solucao):
                     atendidas.add(req)
     return len(atendidas) == n
 
+def restricoes_atendidas(solucao, dados):
+    tempo_max = dados["tempoMaximoViagem"]
+    tempo_servico = dados["tempoServico"]
+    tempo_requisicoes = dados["tempoRequisicoes"]
+    inicio_janela = dados["inicioJanela"]
+    fim_janela = dados["fimJanela"]
+
+    atendidas = set()
+    for k in solucao["onibus"]:
+        for v in solucao["onibus"][k]:
+            rota = solucao["onibus"][k][v]["rota"]
+            tempo = 0
+            viagem = []
+            for i in range(len(rota)):
+                ponto = rota[i]
+                if ponto == 0:
+                    # Nova viagem
+                    if viagem:
+                        if tempo > tempo_max:
+                            return False
+                        viagem = []
+                        tempo = 0
+                    continue
+                ultimo = rota[i-1] if i > 0 else 0
+                deslocamento = tempo_requisicoes[ultimo][ponto]
+                tempo += deslocamento
+                # Espera pela janela
+                if tempo < inicio_janela[ponto-1]:
+                    tempo = inicio_janela[ponto-1]
+                # Verifica janela
+                if tempo > fim_janela[ponto-1]:
+                    return False
+                tempo += tempo_servico[ponto]
+                viagem.append(ponto)
+                if ponto in atendidas:
+                    return False
+                atendidas.add(ponto)
+            # Checa última viagem
+            if viagem and tempo > tempo_max:
+                return False
+    # Checa se todas as requisições foram atendidas
+    n = dados["numeroRequisicoes"]
+    if len(atendidas) != n:
+        return False
+    return True
+
 def construir_solucao_prioritaria():
     motivos = {"capacidade": 0, "janela": 0, "tempo_viagem": 0, "outros": 0}
     solucao = {"onibus": {}}
@@ -79,7 +125,7 @@ def construir_solucao_prioritaria():
                 "arcos": arcos,
                 "chegada": chegada
             }
-    if validar_solucao(solucao):
+    if restricoes_atendidas(solucao):
         return True, motivos
     else:
         return False, motivos
