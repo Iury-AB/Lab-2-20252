@@ -10,7 +10,7 @@ def atendimento_requisicoes(solucao: Solucao, dados: Dados):
             continue  # Pula viagens vazias ou sem paradas intermediárias
         req_atendidas = []
         for req in rota[1:-1]:  # Ignora a garagem no início e no fim
-           req.add(req)
+          req_atendidas.append(req)
         if len(req_atendidas) > dados.n:
             return False
   return True
@@ -42,7 +42,7 @@ def janela_de_tempo_da_coleta(solucao: Solucao, dados: Dados):
     for v, rota in viagens.items():
       if not rota or len(rota) <=1:
           continue  # Pula viagens vazias ou sem paradas intermediárias
-      for index, req in rota[1:-1]: 
+      for index, req in enumerate(rota[1:-1]): 
         inicio = dados.e[req]
         fim = dados.l[req]
         tempo_chegada = solucao.chegada[k][v][index]
