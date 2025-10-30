@@ -43,9 +43,9 @@ def janela_de_tempo_da_coleta(solucao: Solucao, dados: Dados):
       if not rota or len(rota) <=1:
           continue  # Pula viagens vazias ou sem paradas intermediárias
       for index, req in enumerate(rota[1:-1]): 
-        inicio = dados.e[req]
-        fim = dados.l[req]
-        tempo_chegada = solucao.chegada[k][v][index]
+        inicio = dados.e[req-1]
+        fim = dados.l[req-1]
+        tempo_chegada = solucao.chegada[k][v][index+1]
         if tempo_chegada < inicio or tempo_chegada > fim:
           return False
   return True
