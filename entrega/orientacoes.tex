@@ -160,7 +160,7 @@ A classe \texttt{Solucao} possui três atributos principais que devem ser preenc
 \begin{description}[leftmargin=3cm,style=nextline]
     \item[\texttt{rota}] Dicionário hierárquico indexado por ônibus e viagem: \texttt{rota[k][v]} retorna uma lista de requisições visitadas pelo ônibus \texttt{k} na viagem \texttt{v}. Cada rota \textbf{sempre inicia e termina na garagem} (índice 0).
     
-    \item[\texttt{chegada}] Dicionário hierárquico indexado por ônibus e viagem: \texttt{chegada[k][v]} retorna uma lista de tempos (float) correspondentes aos instantes de chegada em cada ponto da rota. O primeiro elemento é sempre 0 (chegada na garagem inicial).
+    \item[\texttt{chegada}] Dicionário hierárquico indexado por ônibus e viagem: \texttt{chegada[k][v]} retorna uma lista de tempos (float) correspondentes aos instantes de chegada em cada ponto da rota.
     
     \item[\texttt{fx}] Valor da função objetivo (float) calculado para a solução.
 \end{description}
