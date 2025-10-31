@@ -91,3 +91,24 @@ def limite_de_tempo_por_viagem(solucao: Solucao, dados: Dados) -> bool:
               return False
   return True
 
+def eh_factivel(solucao: Solucao, dados: Dados) -> bool:
+   factivel = True
+   if not(atendimento_requisicoes(solucao, dados)):
+      print("Restrição 'atendimento_requisicoes' não atendida.")
+      factivel = False
+   if not(inicio_e_fim_de_cada_viagem(solucao, dados)):
+      print("Restricao 'inicio_e_fim_de_cada_viagem' não atendida.")
+      factivel = False
+   if not(janela_de_tempo_da_coleta(solucao, dados)):
+      print("Restricao 'janela_de_tempo_da_coleta' não atendida.")
+      factivel = False
+   if not(sequencia_temporal_das_rotas_intra(solucao, dados)):
+      print("Restricao 'sequencia_temporal_das_rotas_intra' não atendida.")
+      factivel = False
+   if not(Sequencia_temporal_das_rotas_inter(solucao, dados)):
+      print("Restricao 'Sequencia_temporal_das_rotas_inter' não atendida.")
+      factivel = False
+   if not(limite_de_tempo_por_viagem(solucao, dados)):
+      print("Restricao 'limite_de_tempo_por_viagem' não atendida.")
+      factivel = False
+   return factivel
