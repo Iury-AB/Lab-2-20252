@@ -31,10 +31,12 @@ def le_requisicoes(instancia: Dados):
 
 def f_objetivo(solucao: Solucao, instancia: Dados):
     custo = 0
-    for k, viagens in solucao.arcos.items():
-        for v, lista_arcos in viagens.items():
-            for (i,j) in lista_arcos:
-                custo += instancia.c[i][j]
+    for k, viagens in solucao.rota.items():
+        for v, lista_requisicoes in viagens.items():
+            for i, requisicao in enumerate(lista_requisicoes):
+                if (i+1) >= len(lista_requisicoes):
+                  continue
+                custo += instancia.c[requisicao][lista_requisicoes[i+1]]
     
     solucao.fx = custo
     return custo
@@ -100,7 +102,7 @@ def Constroi_solucao_inicial(instancia: Dados):
            solucao.arcos[onibus][viagem].append((ultima_req, 0))
   return solucao
 
-def Inicializar_feromonio (grafo: grafo.Graph):
+def Inicializar_feromonio (grafo: grafo.Graph, solucao_inicial: Solucao):
   vertices = grafo.get_vertex()
   n = len(vertices)
   matriz_feromonios = np.zeros((n,n))
