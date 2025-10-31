@@ -72,19 +72,22 @@ def Sequencia_temporal_das_rotas_inter(solucao: Solucao, dados: Dados):
           if solucao.chegada[k].get(v+1) is None:
               continue  # Pula se não houver viagem posterior
           tempo_fim_v1 = solucao.chegada[k][v][-1]
-          tempo_inicio_v2 = solucao.chegada[k][v+1][0]
-          if tempo_fim_v1 > tempo_inicio_v2:
-              return False
+          tempo_inicio_v2 = solucao.chegada[k][v+1][0] if solucao.chegada[k][v+1] else []
+          if tempo_inicio_v2:
+            if tempo_fim_v1 > tempo_inicio_v2:
+                return False
   return True
 
 def limite_de_tempo_por_viagem(solucao: Solucao, dados: Dados) -> bool:
-  # solucao.chegada[k][v][-1] <= dados.Tmax
+  # solucao.chegada[k][v][-1] - solucao.chegada[k][v][0] <= dados.Tmax
   for k, viagens in solucao.rota.items():
       for v, rota in viagens.items():
           if not rota or len(rota) <=1:
               continue  # Pula viagens vazias ou sem paradas intermediárias
           tempo_fim_v = solucao.chegada[k][v][-1]
-          if tempo_fim_v > dados.Tmax:
+          tempo_inicio_v = solucao.chegada[k][v][0]
+          duracao_v = tempo_fim_v - tempo_inicio_v
+          if duracao_v > dados.Tmax:
               return False
   return True
 

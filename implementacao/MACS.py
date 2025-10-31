@@ -50,44 +50,54 @@ def Constroi_solucao_inicial(instancia: Dados):
   for requisicao in requisicoes_ordenadas:
     atribuida = False
     for viagem in range(1,instancia.r+1):
+      if atribuida:
+         break
       for onibus in range(1,instancia.K+1): 
+        ultima_req = requisicao
+        ultimo_tempo = requisicoes[requisicao].e
+        tempo_chegada = ultimo_tempo - instancia.T[0][requisicao] - instancia.s[0]
+
+        if solucao.rota[onibus][viagem]:
+          ultima_req = solucao.rota[onibus][viagem][-1]
+          ultimo_tempo = solucao.chegada[onibus][viagem][-1]
+          tempo_chegada = ultimo_tempo + instancia.s[ultima_req] + instancia.T[ultima_req][requisicao]
+          tempo_servico = max(tempo_chegada, requisicoes[requisicao].e) + instancia.s[requisicao]  + instancia.T[requisicao][0] - solucao.chegada[onibus][viagem][0]
+          if not (tempo_chegada <= requisicoes[requisicao].l and 
+                  tempo_servico <= instancia.Tmax):
+             continue
+
         if not solucao.rota[onibus][viagem]:
-          solucao.rota[onibus][viagem].append(0)
           if solucao.rota[onibus].get(viagem-1,[]):
             solucao.rota[onibus][viagem-1].append(0)
-            solucao.chegada[onibus][viagem-1].append(solucao.chegada[onibus][viagem-1][-1] + instancia.T[solucao.rota[onibus][viagem-1][-1]][0] + instancia.s[solucao.rota[onibus][viagem-1][-1]])
-            solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem-1][-1])
-          else:
-             solucao.chegada[onibus][viagem].append(0)
+            solucao.chegada[onibus][viagem-1].append(solucao.chegada[onibus][viagem-1][-1] + 
+                                                     instancia.T[solucao.rota[onibus][viagem-1][-1]][0] + instancia.s[solucao.rota[onibus][viagem-1][-1]])
+            solucao.arcos[onibus][viagem-1].append((solucao.rota[onibus][viagem-1][-1], 0))
 
+            solucao.chegada[onibus][viagem].append(tempo_chegada)
+          else:
+            solucao.chegada[onibus][viagem].append(max(tempo_chegada, 0))
+            
+          solucao.rota[onibus][viagem].append(0)
+        
         ultima_req = solucao.rota[onibus][viagem][-1]
         ultimo_tempo = solucao.chegada[onibus][viagem][-1]
-
         tempo_chegada = ultimo_tempo + instancia.s[ultima_req] + instancia.T[ultima_req][requisicao]
-        if tempo_chegada <= requisicoes[requisicao].l and tempo_chegada - solucao.chegada[onibus][viagem][0] <= instancia.Tmax - instancia.T[ultima_req][0]:
-          # inicializa viagem se não existir
-          if viagem not in solucao.rota[onibus]:
-            solucao.rota[onibus][viagem] = [0]
-            solucao.chegada[onibus][viagem] = [0]
 
-          solucao.rota[onibus][viagem].append(requisicao)
-          solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao].e, tempo_chegada))
-          solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
-          atribuida = True
-          break
-        else:
-          continue
-      if atribuida:
-          break
-      
-#  for viagem in range(1,instancia.r+1):
-#     for onibus in range(1,instancia.K+1):
-#        if solucao.rota[onibus][viagem]:
-#          ultima_req = solucao.rota[onibus][viagem][-1]
-#          solucao.rota[onibus][viagem].append(0)
-#          solucao.arcos[onibus][viagem].append((ultima_req, 0))
-#          solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.c[ultima_req][0] + instancia.s[0])
+        solucao.rota[onibus][viagem].append(requisicao)
+        solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao].e, tempo_chegada))
+        solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
+        atribuida = True
+        break
 
+  for viagem in range(1, instancia.r+1):
+     for onibus in range(1, instancia.K+1):
+        if not solucao.rota[onibus][viagem]:
+           continue
+        if solucao.rota[onibus][viagem][-1] != 0:
+           ultima_req = solucao.rota[onibus][viagem][-1]
+           solucao.rota[onibus][viagem].append(0)
+           solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.T[ultima_req][0] + instancia.s[ultima_req])
+           solucao.arcos[onibus][viagem].append((ultima_req, 0))
   return solucao
 
 def Inicializar_feromonio (grafo: grafo.Graph):
