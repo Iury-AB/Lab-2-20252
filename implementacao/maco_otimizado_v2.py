@@ -44,48 +44,26 @@ def pode_alocar_requisicao(rota, chegada, req, tempo_atual, dados):
     fim_servico = inicio_servico + tempo_servico[req]
     if inicio_servico > fim_janela[req-1]:
         return False
-    if chegada and (inicio_servico - chegada[0] + tempo_servico[req]) > tempo_max_viagem:
+    if chegada and  (inicio_servico - chegada[0] + tempo_servico[req])> tempo_max_viagem:
         return False
     return True
 
 
-def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultimoEscolhido, dados, peso_urgencia=2.0, prob_deterministica=0.2):
+def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, tempoViagem, ultimoEscolhido, dados, peso_urgencia=2.0, prob_deterministica=0.2):
     tempo_servico = dados.s
     tempo_requisicoes = dados.T
     inicio_janela = dados.e
     rota = [0]
     arcos = []
     chegada = []
-    tempo_atual = tempo_servico[0]
+    tempo_atual = tempoViagem + tempo_servico[0]
     while requisicoes_restantes:
         i = rota[-1]
         candidatos = list(requisicoes_restantes)
-        candidatos_viaveis = [j for j in candidatos if pode_alocar_requisicao(rota, chegada, j, tempo_atual, dados) and j > i and j > ultimoEscolhido]
+        candidatos_viaveis = [j for j in candidatos if pode_alocar_requisicao(rota, chegada, j, tempo_atual, dados)]
         if not candidatos_viaveis:
             break
-        """probabilidades = []
-        total = 0
-        for j in candidatos_viaveis:
-            deslocamento = tempo_requisicoes[i][j]
-            tau = feromonio[i][j]
-            eta = 1 / (deslocamento + 1e-6)
-            valor = (tau ** alpha) * (eta ** beta)
-            probabilidades.append((j, valor))
-            total += valor
-        if total > 0:
-            probabilidades = [(j, v / total) for j, v in probabilidades]
-        else:
-            probabilidades = [(j, 0) for j, v in probabilidades]
-        r = random.random()
-        acumulado = 0
-        for j, p in probabilidades:
-            acumulado += p
-            if r <= acumulado:
-                escolhido = j
-                break
-        else:
-            escolhido = probabilidades[-1][0]"""
-        
+       
         # Calcula probabilidades com urgência
         probabilidades = []
         total = 0
@@ -94,7 +72,7 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultim
             tau = feromonio[i][j]
             tempo_limite = dados.l[j - 1]
             urgencia = peso_urgencia / (tempo_limite - tempo_atual + 1e-6)
-            eta = (1 / (deslocamento + 1e-6)) * urgencia
+            eta = (1 / (dados.c[i][j] + 1e-6)) #* urgencia
             valor = (tau ** alpha) * (eta ** beta)
             probabilidades.append((j, valor))
             total += valor
@@ -109,7 +87,7 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultim
         if dados.l[urgente-1] == menor_fim:
             escolhido = urgente
         else:
-            # Escolha estocástica ou determinística
+             # Escolha estocástica ou determinística
             if random.random() < prob_deterministica:
                 maior_prob = max(probabilidades, key=lambda x: x[1])[1]
                 melhores = [j for j, p in probabilidades if p == maior_prob]
@@ -122,8 +100,8 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultim
                     if r <= acumulado:
                         escolhido = j
                         break
-                else:
-                    escolhido = probabilidades[-1][0]
+                    else: 
+                        escolhido = probabilidades[-1][0]
 
         #Atualiza tempo e rota
         deslocamento = tempo_requisicoes[rota[-1]][escolhido]
@@ -142,84 +120,6 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultim
         return {"rota": rota, "arcos": arcos, "chegada": chegada}
     return None
 
-"""
-def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, dados, limite_inferior=0,
-                             peso_urgencia=2.0, prob_deterministica=0.2, LIMITE_URGENCIA=15):
-    rota = [0]
-    chegada = [0]
-    arcos = []
-    tempo_atual = 0
-    ultimoescolhido= 0
-    while requisicoes_restantes:
-        i = rota[-1]
-
-        # Filtra candidatos
-        if i == 0:
-            candidatos_viaveis = [
-                j for j in requisicoes_restantes
-                if j > limite_inferior and pode_alocar_requisicao(rota, chegada, j, tempo_atual, dados)
-            ]
-        else:
-            candidatos_viaveis = [
-                j for j in requisicoes_restantes
-                if j > i and pode_alocar_requisicao(rota, chegada, j, tempo_atual, dados)
-            ]
-
-        if not candidatos_viaveis:
-            break
-
-        # Calcula probabilidades com urgência
-        probabilidades = []
-        total = 0
-        for j in candidatos_viaveis:
-            deslocamento = dados.T[i][j]
-            tau = feromonio[i][j]
-            tempo_limite = dados.l[j - 1]
-            urgencia = peso_urgencia / (tempo_limite - tempo_atual + 1e-6)
-            eta = (1 / (deslocamento + 1e-6)) * urgencia
-            valor = (tau ** alpha) * (eta ** beta)
-            probabilidades.append((j, valor))
-            total += valor
-
-        probabilidades = [(j, v / total) for j, v in probabilidades] if total > 0 else [(j, 0) for j, v in probabilidades]
-
-        
-        # Fallback: requisição mais urgente baseada na menor janela fim
-        menor_fim = min(dados.l[j-1] for j in requisicoes_restantes)
-        urgente = min(candidatos_viaveis, key=lambda j: dados.l[j-1])
-
-        if dados.l[urgente-1] == menor_fim:
-            escolhido = urgente
-        else:
-            # Escolha estocástica ou determinística
-            if random.random() < prob_deterministica:
-                maior_prob = max(probabilidades, key=lambda x: x[1])[1]
-                melhores = [j for j, p in probabilidades if p == maior_prob]
-                escolhido = min(melhores)
-            else:
-                r = random.random()
-                acumulado = 0
-                for j, p in probabilidades:
-                    acumulado += p
-                    if r <= acumulado:
-                        escolhido = j
-                        break
-                else:
-                    escolhido = probabilidades[-1][0]
-
-        # Atualiza tempo e rota
-        deslocamento = dados.T[i][escolhido]
-        chegada_estimada = tempo_atual + deslocamento
-        inicio_servico = max(chegada_estimada, dados.e[escolhido - 1])
-        tempo_atual = inicio_servico + dados.s[escolhido]
-
-        rota.append(escolhido)
-        arcos.append([i, escolhido])
-        chegada.append(inicio_servico)
-        requisicoes_restantes.remove(escolhido)
-
-    return {"rota": rota, "chegada": chegada, "arcos": arcos} if len(rota) > 1 else None
-"""
 def construir_solucao_global(feromonio, alpha, beta, rho, dados, Q=100.0):
     n = dados.n
     m = dados.K
@@ -231,73 +131,20 @@ def construir_solucao_global(feromonio, alpha, beta, rho, dados, Q=100.0):
         viagens = {}
         num_viagens = 0
         ultimoEscolhido = 0
+        tempoViagem = 0
         while requisicoes_restantes and num_viagens < r_max:
-            viagem = construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, ultimoEscolhido, dados)
+            viagem = construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, tempoViagem, ultimoEscolhido, dados)
             if viagem:
                     viagens[f"viagem_{num_viagens}"] = viagem
                     num_viagens += 1
                     ultimoEscolhido=max(viagem["rota"])
+                    tempoViagem = viagem["chegada"][-1]
             else:
                 break
         if viagens:
             solucao["onibus"][str(k)] = viagens
     return solucao
-"""
-def construir_solucao_global(feromonio, alpha, beta, rho, dados, Q=100.0, max_tentativas=50):
-    n = dados.n
-    m = dados.K
-    r_max = dados.r
-    custo = dados.c
-    solucao = {"onibus": {}}
-    requisicoes_restantes = set(range(1, n + 1))
 
-    tentativa = 0
-    while requisicoes_restantes and tentativa < max_tentativas:
-        tentativa += 1
-        maior_requisicao_anterior = 0
-
-        for k in range(m):
-            viagens = {}
-            num_viagens = 0
-
-            while requisicoes_restantes and num_viagens < r_max:
-                viagem = construir_viagem_onibus(
-                    requisicoes_restantes,
-                    feromonio,
-                    alpha,
-                    beta,
-                    dados,
-                    limite_inferior=maior_requisicao_anterior
-                )
-
-                if viagem:
-                    rota = viagem["rota"]
-                    maior_requisicao_atual = max(rota)
-
-                    if maior_requisicao_atual > maior_requisicao_anterior:
-                        viagens[f"viagem_{num_viagens}"] = viagem
-                        num_viagens += 1
-                        maior_requisicao_anterior = maior_requisicao_atual
-                    else:
-                        feromonio[maior_requisicao_anterior][maior_requisicao_atual] *= (1 - rho)
-                        requisicoes_restantes.update([x for x in rota if x != 0])
-                        requisicoes_restantes = set(sorted(requisicoes_restantes))
-                else:
-                    break
-
-            if viagens:
-                solucao["onibus"][str(k)] = viagens
-
-        # Reinicialização parcial a cada 10 tentativas
-        if tentativa % 10 == 0 and requisicoes_restantes:
-            requisicoes_restantes = set(range(1, n + 1))
-
-    # Debug: mostrar requisições não atendidas
-    if requisicoes_restantes:
-        print(f"⚠️ Tentativas: {tentativa}. Requisições não atendidas:", sorted(requisicoes_restantes))
-
-    return solucao
-"""
 def calcular_fx(solucao, custo):
     fx = 0
     for k in solucao["onibus"]:
@@ -307,7 +154,7 @@ def calcular_fx(solucao, custo):
                 fx += custo[i][j]
     return fx
 
-def atualizar_feromonio(feromonio, solucao, custo, rho, Q=100.0):
+""" def atualizar_feromonio(feromonio, solucao, custo, rho, Q=100.0):
     n = len(feromonio)
     for i in range(n):
         for j in range(n):
@@ -316,7 +163,27 @@ def atualizar_feromonio(feromonio, solucao, custo, rho, Q=100.0):
         for v in solucao["onibus"][k]:
             arcos = solucao["onibus"][k][v]["arcos"]
             for i, j in arcos:
-                feromonio[i][j] += Q / custo[i][j]
+                feromonio[i][j] += Q / custo[i][j] """
+
+def atualizar_feromonio(feromonio, solucao, custo, rho, historico_arcos=None, Q=100.0, penalidade_repeticao=0.5):
+    n = len(feromonio)
+    
+    # Evaporação padrão
+    for i in range(n):
+        for j in range(n):
+            feromonio[i][j] *= (1 - rho)
+
+    # Reforço com penalidade por repetição
+    for k in solucao["onibus"]:
+        for v in solucao["onibus"][k]:
+            arcos = solucao["onibus"][k][v]["arcos"]
+            for i, j in arcos:
+                delta = Q / custo[i][j]
+                if historico_arcos is not None and (i, j) in historico_arcos:
+                    delta *= penalidade_repeticao  # aplica penalidade
+                feromonio[i][j] += delta
+                if historico_arcos is not None:
+                    historico_arcos.add((i, j))
 
 def reforcar_melhor_global(feromonios, melhores_solucoes_colonia):
     if melhores_solucoes_colonia:
@@ -343,25 +210,38 @@ def resolva(dados, numero_avaliacoes):
     m = dados.K
     r_max = dados.r
     custo = dados.c
-    NUM_COLONIAS = 4
+    NUM_COLONIAS = 3
     NUM_FORMIGAS = 72
-    colonia_parametros = [
+    """ colonia_parametros = [
         {"alpha": 3.0, "beta": 2.0, "rho": 0.1},
         {"alpha": 0.5, "beta": 2.0, "rho": 0.7},
         {"alpha": 1.0, "beta": 5.0, "rho": 0.5},
         {"alpha": 0.1, "beta": 1.0, "rho": 0.9},
+    ] """
+    
+    
+    colonia_parametros = [
+        {"alpha": 4.0, "beta": 5.0, "rho": 0.1},
+        {"alpha": 3.0, "beta": 4.0, "rho": 0.2},
+        {"alpha": 5.0, "beta": 3.0, "rho": 0.1},
     ]
-    colonia_parametros = [perturbar_parametros(p) for p in colonia_parametros]
+
+    historico_arcos = set()
+
+    #colonia_parametros = [perturbar_parametros(p) for p in colonia_parametros]
     avaliacoes_objetivo = 0
     avaliacoes_acumuladas = 0
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, "r", encoding="utf-8") as f:
             checkpoint = json.load(f)
         if checkpoint["numeroRequisicoes"] == n:
-            feromonios = checkpoint["feromonios"]
-            melhor_fx_global = checkpoint["melhor_fx_global"]
-            melhor_solucao_global = checkpoint["melhor_solucao_global"]
-            avaliacoes_acumuladas = checkpoint["avaliacoes_acumuladas"]
+            #feromonios = checkpoint["feromonios"]
+            feromonios = [[[1.0 for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
+            melhor_fx_global = float("inf")
+            melhor_solucao_global = None
+            #melhor_fx_global = checkpoint["melhor_fx_global"]
+            #melhor_solucao_global = checkpoint["melhor_solucao_global"]
+            #avaliacoes_acumuladas = checkpoint["avaliacoes_acumuladas"]
         else:
             feromonios = [[[1.0 for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
             melhor_fx_global = float("inf")
@@ -371,12 +251,12 @@ def resolva(dados, numero_avaliacoes):
         melhor_fx_global = float("inf")
         melhor_solucao_global = None
     
-    # Zera as posições onde i > j
+    """ # Zera as posições onde i > j
     for colonia in range(NUM_COLONIAS):
         for i in range(n+1):
             for j in range(n+1):
                 if i > j:
-                    feromonios[colonia][i][j] = 0.0
+                    feromonios[colonia][i][j] = 0.0 """
 
     sem_melhora_por_execucoes = [0 for _ in range(NUM_COLONIAS)]
     melhor_fx_colonia = [float("inf") for _ in range(NUM_COLONIAS)]
@@ -411,8 +291,8 @@ def resolva(dados, numero_avaliacoes):
                     break
                 if melhores_solucoes_colonia:
                     fx_melhor, solucao_melhor = min(melhores_solucoes_colonia, key=lambda x: x[0])
-                    atualizar_feromonio(feromonios[c], solucao_melhor, custo, rho)
-                reforcar_melhor_global(feromonios, melhores_solucoes_colonia)
+                    atualizar_feromonio(feromonios[c], solucao_melhor, custo, rho, historico_arcos)
+                #reforcar_melhor_global(feromonios, melhores_solucoes_colonia)
         resultado = Solucao()
         resultado.fx = melhor_fx_global
         resultado.rota = {}
