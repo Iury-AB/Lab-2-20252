@@ -3,6 +3,8 @@ import os
 import random
 from exemplo_prof.solucao import Solucao
 from .Restricoes import eh_factivel
+import numpy as np
+import math
 
 
 def dict_para_solucao(dict_solucao, dados):
@@ -63,22 +65,34 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, tempo
         candidatos_viaveis = [j for j in candidatos if pode_alocar_requisicao(rota, chegada, j, tempo_atual, dados)]
         if not candidatos_viaveis:
             break
-       
+        
+        # Converte para um array NumPy para facilitar os cálculos
+        custo_array = np.array(dados.c)
+
+        # Calcula o valor mínimo e máximo da matriz
+        min_val = np.min(custo_array)
+        max_val = np.max(custo_array)
+
+        # Aplica a normalização min-max
+        if max_val - min_val == 0:
+            custo_normalizado = np.zeros_like(custo_array)
+        else:
+            custo_normalizado = (custo_array - min_val) / (max_val - min_val)
+
         # Calcula probabilidades com urgência
         probabilidades = []
         total = 0
         for j in candidatos_viaveis:
             deslocamento = dados.T[i][j]
-            tau = feromonio[i][j]
+            tau = max(1e-3, feromonio[i][j])
             tempo_limite = dados.l[j - 1]
             urgencia = peso_urgencia / (tempo_limite - tempo_atual + 1e-6)
-            eta = (1 / (dados.c[i][j] + 1e-6)) #* urgencia
-            valor = (tau ** alpha) * (eta ** beta)
+            eta = max(1e-3, 1 / (custo_normalizado[i][j] + 1e-6)* urgencia) 
+            valor = math.exp(alpha * math.log(tau + 1e-6) + beta * math.log(eta + 1e-6))
             probabilidades.append((j, valor))
             total += valor
 
         probabilidades = [(j, v / total) for j, v in probabilidades] if total > 0 else [(j, 0) for j, v in probabilidades]
-
         
         # Fallback: requisição mais urgente baseada na menor janela fim
         menor_fim = min(dados.l[j-1] for j in requisicoes_restantes)
@@ -118,7 +132,7 @@ def construir_viagem_onibus(requisicoes_restantes, feromonio, alpha, beta, tempo
         arcos.append([rota[-2], 0])
         chegada.append(tempo_atual + tempo_requisicoes[rota[-2]][0])
         return {"rota": rota, "arcos": arcos, "chegada": chegada}
-    return None
+    return None 
 
 def construir_solucao_global(feromonio, alpha, beta, rho, dados, Q=100.0):
     n = dados.n
@@ -165,7 +179,7 @@ def calcular_fx(solucao, custo):
             for i, j in arcos:
                 feromonio[i][j] += Q / custo[i][j] """
 
-def atualizar_feromonio(feromonio, solucao, custo, rho, historico_arcos=None, Q=100.0, penalidade_repeticao=0.5):
+def atualizar_feromonio(feromonio, solucao, custo, rho, historico_arcos=None, Q=1.0, penalidade_repeticao=0.5):
     n = len(feromonio)
     
     # Evaporação padrão
@@ -173,28 +187,40 @@ def atualizar_feromonio(feromonio, solucao, custo, rho, historico_arcos=None, Q=
         for j in range(n):
             feromonio[i][j] *= (1 - rho)
 
+    
+    # Normalização min-max
+    min_custo = min(min(row) for row in custo)
+    max_custo = max(max(row) for row in custo)
+
+    custo_normalizado = [
+        [(c - min_custo) / (max_custo - min_custo + 1e-6) for c in linha]
+        for linha in custo
+    ]
+
     # Reforço com penalidade por repetição
     for k in solucao["onibus"]:
         for v in solucao["onibus"][k]:
             arcos = solucao["onibus"][k][v]["arcos"]
             for i, j in arcos:
-                delta = Q / custo[i][j]
+                delta = Q / (custo_normalizado[i][j] + 1e-6)
                 if historico_arcos is not None and (i, j) in historico_arcos:
                     delta *= penalidade_repeticao  # aplica penalidade
                 feromonio[i][j] += delta
+                feromonio[i][j] = min(feromonio[i][j], 10.0)
                 if historico_arcos is not None:
                     historico_arcos.add((i, j))
 
 def reforcar_melhor_global(feromonios, melhores_solucoes_colonia):
     if melhores_solucoes_colonia:
         fx_melhor, solucao_melhor = min(melhores_solucoes_colonia, key=lambda x: x[0])
-        delta = 1.0 / (fx_melhor + 1e-6)
+        delta = 1.0 / (math.log(fx_melhor + 1) + 1e-6)
         for c in range(len(feromonios)):
             for k in solucao_melhor["onibus"]:
                 for v in solucao_melhor["onibus"][k]:
                     arcos = solucao_melhor["onibus"][k][v]["arcos"]
                     for i, j in arcos:
-                        feromonios[c][i][j] += delta
+                        feromonios[c][i][j] *= (1 + delta)
+                        feromonios[c][i][j] = min(feromonios[c][i][j], 10.0)
 
 def perturbar_parametros(param):
     return {
@@ -210,25 +236,18 @@ def resolva(dados, numero_avaliacoes):
     m = dados.K
     r_max = dados.r
     custo = dados.c
-    NUM_COLONIAS = 3
-    NUM_FORMIGAS = 72
-    """ colonia_parametros = [
+    NUM_COLONIAS = 4
+    NUM_FORMIGAS = 100
+    colonia_parametros = [
         {"alpha": 3.0, "beta": 2.0, "rho": 0.1},
         {"alpha": 0.5, "beta": 2.0, "rho": 0.7},
         {"alpha": 1.0, "beta": 5.0, "rho": 0.5},
         {"alpha": 0.1, "beta": 1.0, "rho": 0.9},
-    ] """
+    ] 
     
-    
-    colonia_parametros = [
-        {"alpha": 4.0, "beta": 5.0, "rho": 0.1},
-        {"alpha": 3.0, "beta": 4.0, "rho": 0.2},
-        {"alpha": 5.0, "beta": 3.0, "rho": 0.1},
-    ]
-
     historico_arcos = set()
 
-    #colonia_parametros = [perturbar_parametros(p) for p in colonia_parametros]
+    colonia_parametros = [perturbar_parametros(p) for p in colonia_parametros]
     avaliacoes_objetivo = 0
     avaliacoes_acumuladas = 0
     if os.path.exists(CHECKPOINT_FILE):
@@ -236,28 +255,21 @@ def resolva(dados, numero_avaliacoes):
             checkpoint = json.load(f)
         if checkpoint["numeroRequisicoes"] == n:
             #feromonios = checkpoint["feromonios"]
-            feromonios = [[[1.0 for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
+            feromonios = [[[random.uniform(0.5, 1.5) for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
             melhor_fx_global = float("inf")
             melhor_solucao_global = None
             #melhor_fx_global = checkpoint["melhor_fx_global"]
             #melhor_solucao_global = checkpoint["melhor_solucao_global"]
             #avaliacoes_acumuladas = checkpoint["avaliacoes_acumuladas"]
         else:
-            feromonios = [[[1.0 for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
+            feromonios = [[[random.uniform(0.5, 1.5) for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
             melhor_fx_global = float("inf")
             melhor_solucao_global = None
     else:
-        feromonios = [[[1.0 for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
+        feromonios = [[[random.uniform(0.5, 1.5) for _ in range(n+1)] for _ in range(n+1)] for _ in range(NUM_COLONIAS)]
         melhor_fx_global = float("inf")
         melhor_solucao_global = None
     
-    """ # Zera as posições onde i > j
-    for colonia in range(NUM_COLONIAS):
-        for i in range(n+1):
-            for j in range(n+1):
-                if i > j:
-                    feromonios[colonia][i][j] = 0.0 """
-
     sem_melhora_por_execucoes = [0 for _ in range(NUM_COLONIAS)]
     melhor_fx_colonia = [float("inf") for _ in range(NUM_COLONIAS)]
     try:
@@ -292,7 +304,8 @@ def resolva(dados, numero_avaliacoes):
                 if melhores_solucoes_colonia:
                     fx_melhor, solucao_melhor = min(melhores_solucoes_colonia, key=lambda x: x[0])
                     atualizar_feromonio(feromonios[c], solucao_melhor, custo, rho, historico_arcos)
-                #reforcar_melhor_global(feromonios, melhores_solucoes_colonia)
+                reforcar_melhor_global(feromonios, melhores_solucoes_colonia)
+                print(f"Colônia {c}: melhor fx = {melhor_fx_colonia[c]} após {avaliacoes_objetivo} avaliações")
         resultado = Solucao()
         resultado.fx = melhor_fx_global
         resultado.rota = {}
