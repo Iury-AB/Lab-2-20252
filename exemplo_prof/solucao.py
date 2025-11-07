@@ -345,6 +345,74 @@ class Solucao:
         
         # Atualizar modelo com os valores iniciais
         modelo.update()
+        
+    def factivel(self, dados: Dados, verbose: bool=False) -> bool:
+        """
+        Verifica se a solução é factível.
+        
+        Este método realiza uma série de checagens para garantir que a
+        solução armazenada atende a todas as restrições do problema,
+        incluindo duração da viagem, tempos de chegada e cobertura
+        de todas as requisições.
+        
+        Args:
+            dados: Instância original contendo dimensões e parâmetros
+            verbose (bool): Se True, imprime detalhes das verificações
+        
+        Returns:
+            bool: True se a solução é factível, False caso contrário
+        """
+        K = range(1, dados.K + 1)
+        V = range(1, dados.r + 1)
+        N = list(range(1, dados.n + 1))
+
+        for k in K:
+            for v in V:
+                
+                if v not in self.rota[k]:
+                    continue
+
+                requisicoes = self.rota[k][v]
+                chegadas = self.chegada[k][v]
+
+                for i in range(1, len(requisicoes)):
+                    
+                    if (chegadas[i-1] + dados.s[requisicoes[i-1]] 
+                        + dados.T[requisicoes[i-1], requisicoes[i]] 
+                        > chegadas[i] + 1e-4):
+                        if verbose:
+                            print(f"Inconsistência de tempo: veículo {k}, viagem {v}, de requisição {requisicoes[i-1]} para {requisicoes[i]}")
+                        return False
+                
+                requisicoes = self.rota[k][v][1:-1]
+                chegadas = self.chegada[k][v][1:-1]
+
+                duracao = self.chegada[k][v][-1] - self.chegada[k][v][0]
+
+                if duracao > dados.Tmax + 1e-4:
+                    if verbose:
+                        print(f"Veículo {k} na viagem {v} excedeu o tempo máximo: {duracao} > {dados.Tmax}")
+                    return False
+
+                for i in range(len(requisicoes)):
+                    requisicao = requisicoes[i]
+                    chegada = chegadas[i]
+                    if (chegada < dados.e[requisicao-1]-2e-4 
+                        or chegada > dados.l[requisicao-1] + 2e-4):
+                        if verbose:
+                            print(f"Requisição {requisicao} violou janela de tempo: chegada={chegada}, janela=[{dados.e[requisicao-1]}, {dados.l[requisicao-1]}]")
+                        return False
+
+                for requisicao in requisicoes:
+                    N.remove(requisicao)  
+                    
+        if len(N) != 0:
+            if verbose:
+                print("As seguintes requisições não foram atendidas na solução:",
+                      N)
+            return False
+        
+        return True
 
     def salvar(self, nome_arquivo: str) -> None:
         """
@@ -392,12 +460,12 @@ class Solucao:
             dados_json["onibus"][str(k)] = {}
             
             for v in self.rota[k].keys():
-                if self.rota[k][v]:  # Apenas viagens não vazias
-                    dados_json["onibus"][str(k)][f"viagem_{v}"] = {
+                # Incluir todas as viagens, vazias ou não
+                dados_json["onibus"][str(k)][f"viagem_{v}"] = {
                     "rota": self.rota[k][v],
                     "chegada": self.chegada[k][v] if k in self.chegada and v in 
                     self.chegada[k] else []
-                    }
+                }
         
         try:
             with open(nome_arquivo, 'w', encoding='utf-8') as f:
@@ -524,17 +592,17 @@ class Solucao:
         """
         # Obter conjuntos de ônibus e viagens disponíveis
         K = self.rota.keys()
-        V = self.rota[next(iter(K))].keys() if K else []
-        
+                
         resultado = ""
         
         # Processar cada ônibus individualmente
         for k in K:
             rota_completa = []
+            V = self.rota[k].keys() if k in self.rota else []
             
             # Concatenar todas as viagens do ônibus k
             for v in V:
-                if self.rota[k][v]:  # Se a viagem v não está vazia
+                if self.rota[k][v] is not None and self.rota[k][v] != []:  # Se a viagem v não está vazia
                     if not rota_completa:  # Primeira viagem
                         rota_completa = self.rota[k][v].copy()
                     else:  # Viagens subsequentes - remove o 0 inicial
