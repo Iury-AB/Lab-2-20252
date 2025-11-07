@@ -82,3 +82,10 @@ class Graph:
         if aresta.v in vertices:
             vertices.append(aresta.v)
       return vertices
+    
+    def subgraph(self, vertices):
+        subgraph = Graph()
+        for edge in self.get_edges():
+            if edge.u in vertices and edge.v in vertices:
+                subgraph.add_edge(edge.u, edge.v, edge.w)
+        return subgraph
