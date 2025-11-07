@@ -168,45 +168,46 @@ class MACS:
 
     onibus_possiveis = list(probabilidades.keys())
     pesos = list(probabilidades.values())
+    onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
     
-    for onibus in range(len(onibus_possiveis)):
-      onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
+    # for onibus in range(len(onibus_possiveis)):
+    #   onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
 
-      if distribuicoes[onibus_escolhido]:
-        vizinhos = {i: len(self.grafo.get_neighbors(i)) for i in distribuicoes[onibus_escolhido]}
-        max_vizinhos = max(vizinhos.values())
-        maiores_vizinhos = [i for i, v in vizinhos.items() if v == max_vizinhos]
+    #   if distribuicoes[onibus_escolhido]:
+    #     vizinhos = {i: len(self.grafo.get_neighbors(i)) for i in distribuicoes[onibus_escolhido]}
+    #     max_vizinhos = max(vizinhos.values())
+    #     maiores_vizinhos = [i for i, v in vizinhos.items() if v == max_vizinhos]
 
-        rota_encontrada = False
-        for i in maiores_vizinhos:
-          vertices_subgrafo = distribuicoes[onibus_escolhido].copy()
-          vertices_subgrafo.append(requisicao)
-          sub_grafo = self.grafo.subgraph(vertices_subgrafo)
+    #     rota_encontrada = False
+    #     for i in maiores_vizinhos:
+    #       vertices_subgrafo = distribuicoes[onibus_escolhido].copy()
+    #       vertices_subgrafo.append(requisicao)
+    #       sub_grafo = self.grafo.subgraph(vertices_subgrafo)
 
-          if (
-              dfs_hamiltoniano(i, requisicao, sub_grafo, set()) or 
-              dfs_hamiltoniano(requisicao, i, sub_grafo, set())
-          ):
-            rota_encontrada = True
-            break
+    #       if (
+    #           dfs_hamiltoniano(i, requisicao, sub_grafo, set()) or 
+    #           dfs_hamiltoniano(requisicao, i, sub_grafo, set())
+    #       ):
+    #         rota_encontrada = True
+    #         break
 
-        if rota_encontrada:
-          break
-        onibus_possiveis.remove(onibus_escolhido)
-        pesos.remove(probabilidades[onibus_escolhido])
-      else:
-        break
+    #     if rota_encontrada:
+    #       break
+    #     onibus_possiveis.remove(onibus_escolhido)
+    #     pesos.remove(probabilidades[onibus_escolhido])
+    #   else:
+    #     break
 
     return onibus_escolhido
   
   def __seleciona_proxima_requisicao(self, distribuicao: dict, i: int,
                                      alpha: float, beta: float):
      
-    vizinhos = self.grafo.get_neighbors(i)
-    vizinhos_factiveis = [vizinho for vizinho in vizinhos if vizinho in distribuicao]
-    atratividade1 = {j: 0 for j in vizinhos_factiveis}
-    atratividade2 = {j: 0 for j in vizinhos_factiveis}
-    atratividade = {j: 0 for j in vizinhos_factiveis}
+    # vizinhos = self.grafo.get_neighbors(i)
+    # vizinhos_factiveis = [vizinho for vizinho in vizinhos if vizinho in distribuicao]
+    atratividade1 = {j: 0 for j in distribuicao}
+    atratividade2 = {j: 0 for j in distribuicao}
+    atratividade = {j: 0 for j in distribuicao}
 
     menor_distancia = min(
       self.instancia.c[i][j]
@@ -215,114 +216,41 @@ class MACS:
       if i != j
     )
 
-    for j in vizinhos_factiveis:
+    for j in distribuicao:
       atratividade1[j] = menor_distancia / self.instancia.c[i][j]
       atratividade2[j] = math.exp(-(abs(self.requisicoes[i].e - self.requisicoes[j].e))/self.instancia.Tmax) if i != 0 else math.exp(-(self.requisicoes[j].e)/self.instancia.Tmax)
       atratividade[j] = atratividade1[j] * atratividade2[j]
 
     vontade = {j: (atratividade[j] ** beta) * (self.feromonios_rota[i][j] ** alpha) 
-               for j in vizinhos_factiveis}
+               for j in distribuicao}
     
     probabilidades = {j: vontade[j] / sum(vontade.values()) 
-                      for j in vizinhos_factiveis}
+                      for j in distribuicao}
     
     Requisicao_j = random.choices(
-       vizinhos_factiveis,
+       distribuicao,
        probabilidades.values(), k=1)[0]
 
-    req_restantes = [n for n in distribuicao if n != Requisicao_j]
-    sub_grafo = self.grafo.subgraph(distribuicao)
-    saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-    ultimo = max(saidas, key=saidas.get) if saidas else Requisicao_j
-    while  (not dfs_hamiltoniano(Requisicao_j, ultimo, sub_grafo,set())
-            and len(distribuicao) > 1):
-      vizinhos_factiveis.remove(Requisicao_j)
-      probabilidades.pop(Requisicao_j)
-      Requisicao_j = random.choices(
-         vizinhos_factiveis,
-         probabilidades.values(), k=1)[0]
-      req_restantes = [n for n in distribuicao if n != Requisicao_j]
-      saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-      ultimo = max(saidas, key=saidas.get)
+    # req_restantes = [n for n in distribuicao if n != Requisicao_j]
+    # sub_grafo = self.grafo.subgraph(distribuicao)
+    # saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
+    # ultimo = max(saidas, key=saidas.get) if saidas else Requisicao_j
+    # while  (not dfs_hamiltoniano(Requisicao_j, ultimo, sub_grafo,set())
+    #         and len(distribuicao) > 1):
+    #   vizinhos_factiveis.remove(Requisicao_j)
+    #   probabilidades.pop(Requisicao_j)
+    #   Requisicao_j = random.choices(
+    #      vizinhos_factiveis,
+    #      probabilidades.values(), k=1)[0]
+    #   req_restantes = [n for n in distribuicao if n != Requisicao_j]
+    #   saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
+    #   ultimo = max(saidas, key=saidas.get)
 
     return Requisicao_j
   
   def __fechar_rota(self, solucao: Solucao, onibus: int,
                      alfa: float, beta: float):
-    duracao = solucao.chegada[onibus][1][-1] - solucao.chegada[onibus][1][0]
-
-    if(duracao > self.instancia.Tmax):
-      n_garagens = duracao/self.instancia.Tmax
-      requisicoes_atendidas = len(solucao.rota[onibus][1]) - 1
-      razao_requisicao_garagem = requisicoes_atendidas / n_garagens
-      pos_garagens = razao_requisicao_garagem + razao_requisicao_garagem * np.arange(n_garagens)
-      pos_garagens = [p for i, p in enumerate(pos_garagens) 
-                      if p < requisicoes_atendidas and i < self.instancia.r]
-
-      pos_exatas = []
-      for p in pos_garagens:
-        if abs(np.round(p) - p) < 0.4:
-          pos_exatas.append([int(np.round(p))])
-        else:
-          pos_exatas.append((int(math.floor(p)), int(math.ceil(p))))
-
-      for i, pos in enumerate(pos_exatas):
-        if len(pos) == 1:
-          continue
-        else:
-          atratividade = {i: 1 / self.instancia.c[i][0]
-                           for i in pos}
-          vontade = {i: (atratividade[i] ** beta) * (self.feromonios_garagem[i] ** alfa)
-                      for i in pos}
-          probabilidades = {i: vontade[i] / sum(vontade.values()) for i in pos}
-          
-          pos_exatas[i] = random.choices(pos, weights=probabilidades)
-
-      req_movidas = (
-         solucao.rota[onibus][1][pos[0]:] if i+1 >= len(pos_exatas) 
-         else solucao.rota[onibus][1][pos[0]:pos_exatas[i+1][0]]
-         )
-      solucao.rota[onibus][1] = [
-        x if x not in req_movidas else -1
-        for x in solucao.rota[onibus][1]
-      ]
-          
-      solucao.rota[onibus][1][pos[0]] = 0
-      solucao.chegada[onibus][1][pos[0]] = (
-        solucao.chegada[onibus][1][pos[0] -1] 
-        + self.instancia.s[solucao.rota[onibus][1][pos[0] -1]]
-        + self.instancia.T[solucao.rota[onibus][1][pos[0] -1]][0])
-          
-      solucao.rota[onibus][i+2].append(0)
-      solucao.chegada[onibus][i+2].append(max(
-        solucao.chegada[onibus][1][pos[0]],
-        self.instancia.e[req_movidas[0]-1] - 
-        self.instancia.s[solucao.rota[onibus][1][0]] -
-        self.instancia.T[0][req_movidas[0]]))
-
-      solucao.rota[onibus][i+2].extend(req_movidas)
-      for h, j in enumerate(solucao.rota[onibus][i+2]):
-        if h+1 >= len(solucao.rota[onibus][i+2]) or j == -1:
-          continue
-        solucao.chegada[onibus][i+2].append(max(
-          solucao.chegada[onibus][i+2][h] +
-          self.instancia.s[j] +
-          self.instancia.T[j][solucao.rota[onibus][i+2][h+1]],
-          self.instancia.e[solucao.rota[onibus][i+2][h+1] - 1]))
-
-      solucao.rota[onibus][i+2].append(0)
-      solucao.chegada[onibus][i+2].append(
-        solucao.chegada[onibus][1][-1] + 
-        self.instancia.s[solucao.rota[onibus][1][-1]] +
-        self.instancia.T[solucao.rota[onibus][1][-1]][0])
-
-      solucao.rota[onibus][1] = [x for x in solucao.rota[onibus][1] if x != -1]
-      solucao.chegada[onibus][1] = [solucao.chegada[onibus][1][x] 
-                                    for x in range(len(solucao.rota[onibus][1]))]
-
-      return solucao
-    else:
-      solucao.rota[onibus][1].append(0)
+    
       return solucao
 
   def otimizar(self, n_formigas, alpha1: float, beta1: float,
@@ -360,6 +288,8 @@ class MACS:
           i = sol.rota[k][1][-1]
           j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
 
+          #######
+
           chegada_i = (max(
             self.requisicoes[j].e - self.instancia.s[i] - self.instancia.T[i][j], 0) 
             if i == 0 else sol.chegada[k][1][-1])
@@ -374,6 +304,7 @@ class MACS:
       sol.fx = f_objetivo(sol, self.instancia)
 
       melhor_solucao = sol if sol.fx < melhor_solucao.fx else melhor_solucao
+
 
     return melhor_solucao
 
