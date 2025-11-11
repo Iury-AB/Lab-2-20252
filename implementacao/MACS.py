@@ -304,7 +304,7 @@ class MACS:
         while Qk[k]:
           i = sol.rota[k][1][-1]
           j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
-
+          
           #######
 
           chegada_i = (max(
