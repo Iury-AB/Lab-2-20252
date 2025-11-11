@@ -117,10 +117,12 @@ class MACS:
     self.instancia = instancia
     self.requisicoes = dict(sorted(le_requisicoes(instancia).items(), key=lambda item: item[1]))
 
+    self.avaliacoes = 0
+
     self.grafo = grafo.Graph()
     for i, req_i in self.requisicoes.items():
       for j, req_j in self.requisicoes.items():
-        if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j] and req_i != req_j:
+        #if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j] and req_i != req_j:
             self.grafo.add_edge(i, j, self.instancia.T[i][j])
 
     for req in self.requisicoes.keys():
@@ -128,7 +130,6 @@ class MACS:
 
     self.feromonios_onibus = {i: {k: 1 for k in range(1,instancia.K+1)} for i in range(1,instancia.n+1)}
     self.feromonios_rota = {i: {j: 1 for j in range(0,instancia.n+1)} for i in range(0,instancia.n+1)}
-    self.feromonios_garagem = {i: 1 for i in range(1,instancia.n+1)}
 
   def __seleciona_requisicao(self, requisicoes):
     i = random.choice(list(requisicoes.keys()))
@@ -252,9 +253,25 @@ class MACS:
                      alfa: float, beta: float):
     
       return solucao
+  
+  def __atualiza_feromonios(self, rho: float, solucao: Solucao):
+    for i in self.requisicoes.keys():
+      req_encontrada = False
+      for k in range(1, self.instancia.K+1):
+        for v in range(1, self.instancia.r+1):
+          if i in solucao.rota[k][v]:
+            incremento_feromonio = 1 / solucao.fx
+            self.feromonios_onibus[i][k] = rho * self.feromonios_onibus[i][k] + incremento_feromonio
+            req_encontrada = True
+            break
+        if req_encontrada:
+          break
+      if req_encontrada:
+        break
+    return
 
   def otimizar(self, n_formigas, alpha1: float, beta1: float,
-                alpha2: float, beta2: float):
+                alpha2: float, beta2: float, rho: float):
     m = n_formigas
     K = self.instancia.K
 
@@ -301,23 +318,20 @@ class MACS:
              self.instancia.e[j-1]))
           Qk[k].remove(j)
         if sol.rota[k][1]: self.__fechar_rota(sol, k, 0, 1)
-      sol.fx = f_objetivo(sol, self.instancia)
 
-      melhor_solucao = sol if sol.fx < melhor_solucao.fx else melhor_solucao
+      
 
+      self.__atualiza_feromonios(rho, melhor_solucao)
 
     return melhor_solucao
 
 instancia = carrega_dados_json("dados/pequena.json")
 
 macs = MACS(instancia)
-solucao = macs.otimizar(100, alpha1=0,beta1=1,alpha2=0,beta2=1)
+solucao = macs.otimizar(100, alpha1=0,beta1=1,alpha2=0,beta2=1,rho=0.6)
 fim = time.time()
 print(f"Tempo de execução: {fim - inicio:.4f} segundos")
 print(solucao.fx)
 print(solucao)
 print(res.eh_factivel(solucao, instancia))
 pequena_otima = Solucao()
-pequena_otima.carregar("dados/otimo_pequena.json")
-f_objetivo(pequena_otima, instancia)
-print("#####\n", pequena_otima, pequena_otima.fx)
