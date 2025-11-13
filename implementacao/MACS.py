@@ -122,8 +122,9 @@ class MACS:
     self.grafo = grafo.Graph()
     for i, req_i in self.requisicoes.items():
       for j, req_j in self.requisicoes.items():
-        #if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j] and req_i != req_j:
-            self.grafo.add_edge(i, j, self.instancia.T[i][j])
+        #if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j] and 
+        if req_i != req_j:
+          self.grafo.add_edge(i, j, self.instancia.T[i][j])
 
     for req in self.requisicoes.keys():
        self.grafo.add_edge(0, req, self.instancia.c[0][req])
@@ -156,8 +157,10 @@ class MACS:
 
       atratividade1[k] = servico_restante_onibus[k] / (sum(servico_restante_onibus.values()))
       
-      atratividade2[k] = math.exp(
-         -(abs(max(requisicoes_distribuicao.values()).e - self.requisicoes[requisicao].e))/self.instancia.Tmax) if distribuicoes[k] else math.exp(-(self.requisicoes[requisicao].e)/self.instancia.Tmax)
+      atratividade2[k] = (1/sum([i.w for i in self.grafo.graph[requisicao] 
+                                 if i.v in distribuicoes[k]]) 
+                                 if distribuicoes[k] else
+                                 1/self.requisicoes[requisicao].e)
 
       atratividade[k] = atratividade1[k] * atratividade2[k]
 
@@ -170,42 +173,12 @@ class MACS:
     onibus_possiveis = list(probabilidades.keys())
     pesos = list(probabilidades.values())
     onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
-    
-    # for onibus in range(len(onibus_possiveis)):
-    #   onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
-
-    #   if distribuicoes[onibus_escolhido]:
-    #     vizinhos = {i: len(self.grafo.get_neighbors(i)) for i in distribuicoes[onibus_escolhido]}
-    #     max_vizinhos = max(vizinhos.values())
-    #     maiores_vizinhos = [i for i, v in vizinhos.items() if v == max_vizinhos]
-
-    #     rota_encontrada = False
-    #     for i in maiores_vizinhos:
-    #       vertices_subgrafo = distribuicoes[onibus_escolhido].copy()
-    #       vertices_subgrafo.append(requisicao)
-    #       sub_grafo = self.grafo.subgraph(vertices_subgrafo)
-
-    #       if (
-    #           dfs_hamiltoniano(i, requisicao, sub_grafo, set()) or 
-    #           dfs_hamiltoniano(requisicao, i, sub_grafo, set())
-    #       ):
-    #         rota_encontrada = True
-    #         break
-
-    #     if rota_encontrada:
-    #       break
-    #     onibus_possiveis.remove(onibus_escolhido)
-    #     pesos.remove(probabilidades[onibus_escolhido])
-    #   else:
-    #     break
 
     return onibus_escolhido
   
-  def __seleciona_proxima_requisicao(self, distribuicao: dict, i: int,
+  def __seleciona_proxima_requisicao(self, distribuicao: list, i: int,
                                      alpha: float, beta: float):
      
-    # vizinhos = self.grafo.get_neighbors(i)
-    # vizinhos_factiveis = [vizinho for vizinho in vizinhos if vizinho in distribuicao]
     atratividade1 = {j: 0 for j in distribuicao}
     atratividade2 = {j: 0 for j in distribuicao}
     atratividade = {j: 0 for j in distribuicao}
@@ -219,7 +192,11 @@ class MACS:
 
     for j in distribuicao:
       atratividade1[j] = menor_distancia / self.instancia.c[i][j]
-      atratividade2[j] = math.exp(-(abs(self.requisicoes[i].e - self.requisicoes[j].e))/self.instancia.Tmax) if i != 0 else math.exp(-(self.requisicoes[j].e)/self.instancia.Tmax)
+      atratividade2[j] = (1 if (i == 0 or j == 0) else math.exp(-(
+        abs(self.requisicoes[i].e - self.requisicoes[j].e))/self.instancia.Tmax) 
+        if (self.requisicoes[j].l - self.requisicoes[i].e >= 
+            self.instancia.s[i] + self.instancia.T[i][j])
+        else 0.5)
       atratividade[j] = atratividade1[j] * atratividade2[j]
 
     vontade = {j: (atratividade[j] ** beta) * (self.feromonios_rota[i][j] ** alpha) 
@@ -232,27 +209,31 @@ class MACS:
        distribuicao,
        probabilidades.values(), k=1)[0]
 
-    # req_restantes = [n for n in distribuicao if n != Requisicao_j]
-    # sub_grafo = self.grafo.subgraph(distribuicao)
-    # saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-    # ultimo = max(saidas, key=saidas.get) if saidas else Requisicao_j
-    # while  (not dfs_hamiltoniano(Requisicao_j, ultimo, sub_grafo,set())
-    #         and len(distribuicao) > 1):
-    #   vizinhos_factiveis.remove(Requisicao_j)
-    #   probabilidades.pop(Requisicao_j)
-    #   Requisicao_j = random.choices(
-    #      vizinhos_factiveis,
-    #      probabilidades.values(), k=1)[0]
-    #   req_restantes = [n for n in distribuicao if n != Requisicao_j]
-    #   saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-    #   ultimo = max(saidas, key=saidas.get)
-
     return Requisicao_j
   
-  def __fechar_rota(self, solucao: Solucao, onibus: int,
-                     alfa: float, beta: float):
+  def __fechar_rota(self, solucao: Solucao, onibus: int):
+    viagem = 1
+    mover = False
+    rota = solucao.rota[onibus][viagem].copy()
+    indice = 0
+    for i, r in enumerate(rota):
+      if r == 0 and i != 0 and i+1 < len(rota):
+        mover = True
+        solucao.rota[onibus][1].pop(indice)
+        viagem += 1
+        continue
+      if mover:
+        if not solucao.rota[onibus][viagem]:
+          solucao.rota[onibus][viagem].append(0)
+        solucao.rota[onibus][1].remove(r)
+        solucao.rota[onibus][viagem].append(r)
+        continue
+      indice += 1
     
-      return solucao
+    for v in range(1,self.instancia.r+1):
+      if solucao.rota[onibus][v] and solucao.rota[onibus][v][-1] != 0:
+        solucao.rota[onibus][v].append(0)
+    return solucao
   
   def __atualiza_feromonios(self, rho: float, solucao: Solucao):
     for i in self.requisicoes.keys():
@@ -276,6 +257,7 @@ class MACS:
     K = self.instancia.K
 
     melhor_solucao = Constroi_solucao_inicial(self.instancia)
+    self.avaliacoes += 1
 
     for f in range(m):
 
@@ -303,35 +285,31 @@ class MACS:
 
         while Qk[k]:
           i = sol.rota[k][1][-1]
+          n_viagens = sol.rota[k][1].count(0)
+          if (0 not in Qk[k] and i != 0 and n_viagens < self.instancia.r): Qk[k].append(0)
           j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
-          
-          #######
-
-          chegada_i = (max(
-            self.requisicoes[j].e - self.instancia.s[i] - self.instancia.T[i][j], 0) 
-            if i == 0 else sol.chegada[k][1][-1])
-
           sol.rota[k][1].append(j)
-          if i == 0: sol.chegada[k][1].append(chegada_i)
-          sol.chegada[k][1].append(max(
-             chegada_i + self.instancia.s[i] + self.instancia.T[i][j],
-             self.instancia.e[j-1]))
           Qk[k].remove(j)
-        if sol.rota[k][1]: self.__fechar_rota(sol, k, 0, 1)
+        if sol.rota[k][1]: self.__fechar_rota(sol, k)
 
-      
+      if sol.factivel(self.instancia): 
+        f_objetivo(sol)
+        self.avaliacoes += 1
+        melhor_solucao = sol if sol.fx < melhor_solucao.fx else melhor_solucao
 
       self.__atualiza_feromonios(rho, melhor_solucao)
 
     return melhor_solucao
 
 instancia = carrega_dados_json("dados/pequena.json")
-
-macs = MACS(instancia)
-solucao = macs.otimizar(100, alpha1=0,beta1=1,alpha2=0,beta2=1,rho=0.6)
-fim = time.time()
-print(f"Tempo de execução: {fim - inicio:.4f} segundos")
-print(solucao.fx)
-print(solucao)
-print(res.eh_factivel(solucao, instancia))
-pequena_otima = Solucao()
+solucao = Constroi_solucao_inicial(instancia)
+print(solucao.factivel(instancia))
+# random.seed(123)
+# macs = MACS(instancia)
+# solucao = macs.otimizar(100, alpha1=0,beta1=1,alpha2=0,beta2=1,rho=0.6)
+# fim = time.time()
+# print(f"Tempo de execução: {fim - inicio:.4f} segundos")
+# print(solucao.fx)
+# print(solucao)
+# print(res.eh_factivel(solucao, instancia))
+# pequena_otima = Solucao()
