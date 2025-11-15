@@ -125,7 +125,11 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# todos os json gerados
 *json
+
+# visualizações de desempenho
+*.prof
 
 # Pyre type checker
 .pyre/
