@@ -117,6 +117,9 @@ class MACS:
     self.requisicoes = dict(sorted(le_requisicoes(instancia).items(), key=lambda item: item[1]))
 
     self.avaliacoes = 0
+    self.solucoes_exploradas = 0
+    self.solucoes_factiveis = 0
+    self.melhorias = 0
 
     self.sol_inicial = solucao_inicial
 
@@ -139,14 +142,17 @@ class MACS:
       if i != j
     )
 
-    self.feromonios_onibus = {i: {k: 1/solucao_inicial.fx 
+    self.feromonios_onibus = {i: {k: 100/solucao_inicial.fx 
                                   for k in range(1,instancia.K+1)}
                                   for i in range(1,instancia.n+1)}
     
-    self.feromonios_rota = {i: {j: 1/solucao_inicial.fx
+    self.feromonios_rota = {i: {j: 100/solucao_inicial.fx
                                 for j in range(0,instancia.n+1)}
                                 for i in range(0,instancia.n+1)}
-
+    
+  def __str__(self):
+    return (f"Soluções exploradas: {self.solucoes_exploradas}\nSoluções factíveis encontradas: {self.solucoes_factiveis}\nMelhorias no ótimo encontrado: {self.melhorias}")
+  
   def __seleciona_requisicao(self, requisicoes):
     i = random.choice(requisicoes)
     return i
@@ -208,7 +214,7 @@ class MACS:
     return solucao
   
   def __atualiza_feromonios(self, rho: float, solucao: Solucao):
-    incremento_feromonio = 1 / solucao.fx
+    incremento_feromonio = 100 / solucao.fx
     for k, viagens in solucao.rota.items():
       for v, lista_requisicoes in viagens.items():
         for req in lista_requisicoes:
@@ -279,7 +285,7 @@ class MACS:
     self.feromonios_onibus
     self.avaliacoes += 1
 
-    for iter in range(max_iter):
+    while self.avaliacoes < max_iter:
       solucoes = []
       for f in range(m):
 
@@ -318,29 +324,39 @@ class MACS:
         
         solucoes.append(sol)
       for solucao in solucoes:
+        self.solucoes_exploradas +=1
         if solucao.factivel(self.instancia): 
+          self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
           if solucao.fx < melhor_solucao.fx:
+            self.melhorias+=1
             melhor_solucao = solucao
-            print(melhor_solucao.fx)
+            print(f"fx: {melhor_solucao.fx}, solucoes factiveis exploradas: {self.solucoes_factiveis}")
+          if self.avaliacoes > max_iter:
+            return melhor_solucao
         else:
-            self.__penaliza_feromonios_rota(solucao, 0.9)
-            self.__penaliza_feromonios_onibus(solucao, 0.9)
+            self.__penaliza_feromonios_rota(solucao, 0.7)
+            self.__penaliza_feromonios_onibus(solucao, 0.7)
           
       self.__atualiza_feromonios(rho, melhor_solucao)
 
     return melhor_solucao
 
-instancia = carrega_dados_json("dados/pequena.json")
-random.seed(123)
-
-solucao_inicial = Constroi_solucao_inicial(instancia)
-macs = MACS(instancia, solucao_inicial)
-solucao = macs.otimizar(n_formigas=20, max_iter=2100, alpha1=0.5,beta1=0.5,
-                        alpha2=0.5,beta2=0.5,rho=0.6)
-fim = time.time()
-print(f"Tempo de execução: {fim - inicio:.4f} segundos")
-print(solucao.fx)
+instancia = carrega_dados_json("dados/media.json")
+solucao = Solucao()
+solucao.carregar("dados/otimo_media.json")
 print(solucao)
-print(solucao.factivel(instancia, verbose=True))
+print(solucao.fx)
+
+# solucao_inicial = Constroi_solucao_inicial(instancia)
+# print(solucao_inicial)
+# macs = MACS(instancia, solucao_inicial)
+# solucao = macs.otimizar(n_formigas=10, max_iter=2100, alpha1=0.5,beta1=0.9,
+#                         alpha2=0.5,beta2=0.9,rho=0.6)
+# fim = time.time()
+# print(macs)
+# print(f"Tempo de execução: {fim - inicio:.4f} segundos")
+# print(solucao.fx)
+# print(solucao)
+# print(solucao.factivel(instancia, verbose=True))
