@@ -36,18 +36,23 @@ def sequencia_de_viagens(solucao: Solucao, dados: Dados):
   # nao precisa
   return True or False
 
+def atende_janela(requisicoes: list, chegadas: list, dados: Dados):
+  for index, req in enumerate(requisicoes[1:-1]): 
+      inicio = dados.e[req-1]
+      fim = dados.l[req-1]
+      tempo_chegada = chegadas[index+1]
+      if tempo_chegada < inicio or tempo_chegada > fim:
+        return False
+  return True
+
 def janela_de_tempo_da_coleta(solucao: Solucao, dados: Dados):
   # o tempo de chegada de uma requisição deve estar dentro da janela de tempo desta
   for k, viagens in solucao.rota.items():
     for v, rota in viagens.items():
       if not rota or len(rota) <=1:
           continue  # Pula viagens vazias ou sem paradas intermediárias
-      for index, req in enumerate(rota[1:-1]): 
-        inicio = dados.e[req-1]
-        fim = dados.l[req-1]
-        tempo_chegada = solucao.chegada[k][v][index+1]
-        if tempo_chegada < inicio or tempo_chegada > fim:
-          return False
+      if not atende_janela(rota, solucao.chegada[k][v], dados):
+         return False
   return True
 
 def sequencia_temporal_das_rotas_intra(solucao: Solucao, dados: Dados):
@@ -78,17 +83,22 @@ def Sequencia_temporal_das_rotas_inter(solucao: Solucao, dados: Dados):
                 return False
   return True
 
+def atende_tempo_maximo(chegadas: list, dados:Dados):
+  tempo_fim_v = chegadas[-1]
+  tempo_inicio_v = chegadas[0]
+  duracao_v = tempo_fim_v - tempo_inicio_v
+  if duracao_v > dados.Tmax:
+      return False
+  return True
+
 def limite_de_tempo_por_viagem(solucao: Solucao, dados: Dados) -> bool:
   # solucao.chegada[k][v][-1] - solucao.chegada[k][v][0] <= dados.Tmax
   for k, viagens in solucao.rota.items():
       for v, rota in viagens.items():
           if not rota or len(rota) <=1:
-              continue  # Pula viagens vazias ou sem paradas intermediárias
-          tempo_fim_v = solucao.chegada[k][v][-1]
-          tempo_inicio_v = solucao.chegada[k][v][0]
-          duracao_v = tempo_fim_v - tempo_inicio_v
-          if duracao_v > dados.Tmax:
-              return False
+            continue  # Pula viagens vazias ou sem paradas intermediárias
+          if not atende_tempo_maximo(rota, dados):
+            return False
   return True
 
 def eh_factivel(solucao: Solucao, dados: Dados) -> bool:

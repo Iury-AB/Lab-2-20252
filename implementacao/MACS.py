@@ -54,9 +54,8 @@ def Constroi_solucao_inicial(instancia: Dados):
   requisicoes = le_requisicoes(instancia)
   requisicoes_ordenadas = [i+1 for i, _ in sorted(enumerate(requisicoes), key=lambda x: x[1])]
   solucao = Solucao()
-  solucao.rota = {k: {v: [] for v in range(1,instancia.r+1)} for k in range(1,instancia.K+1)}
-  solucao.chegada = {k: {v: [] for v in range(1,instancia.r+1)} for k in range(1,instancia.K+1)}
-  solucao.arcos = {k: {v: [] for v in range(1,instancia.r+1)} for k in range(1,instancia.K+1)}
+  solucao.rota = {k: {} for k in range(1,instancia.K+1)}
+  solucao.chegada = {k: {} for k in range(1,instancia.K+1)}
 
   for requisicao in requisicoes_ordenadas:
     atribuida = False
@@ -68,7 +67,7 @@ def Constroi_solucao_inicial(instancia: Dados):
         ultimo_tempo = requisicoes[requisicao].e
         tempo_chegada = ultimo_tempo - instancia.T[0][requisicao] - instancia.s[0]
 
-        if solucao.rota[onibus][viagem]:
+        if viagem in solucao.rota[onibus]:
           ultima_req = solucao.rota[onibus][viagem][-1]
           ultimo_tempo = solucao.chegada[onibus][viagem][-1]
           tempo_chegada = ultimo_tempo + instancia.s[ultima_req] + instancia.T[ultima_req][requisicao]
@@ -77,17 +76,19 @@ def Constroi_solucao_inicial(instancia: Dados):
                   tempo_servico <= instancia.Tmax):
              continue
 
-        if not solucao.rota[onibus][viagem]:
+        if viagem not in solucao.rota[onibus]:
           if solucao.rota[onibus].get(viagem-1,[]):
             solucao.rota[onibus][viagem-1].append(0)
             solucao.chegada[onibus][viagem-1].append(solucao.chegada[onibus][viagem-1][-1] + 
                                                      instancia.T[solucao.rota[onibus][viagem-1][-1]][0] + instancia.s[solucao.rota[onibus][viagem-1][-1]])
-            solucao.arcos[onibus][viagem-1].append((solucao.rota[onibus][viagem-1][-1], 0))
 
+            solucao.chegada[onibus][viagem] = []
             solucao.chegada[onibus][viagem].append(tempo_chegada)
           else:
+            solucao.chegada[onibus][viagem] = []
             solucao.chegada[onibus][viagem].append(max(tempo_chegada, 0))
             
+          solucao.rota[onibus][viagem] = []
           solucao.rota[onibus][viagem].append(0)
         
         ultima_req = solucao.rota[onibus][viagem][-1]
@@ -96,228 +97,266 @@ def Constroi_solucao_inicial(instancia: Dados):
 
         solucao.rota[onibus][viagem].append(requisicao)
         solucao.chegada[onibus][viagem].append(max(requisicoes[requisicao].e, tempo_chegada))
-        solucao.arcos[onibus][viagem].append((ultima_req, requisicao))
         atribuida = True
         break
 
   for viagem in range(1, instancia.r+1):
      for onibus in range(1, instancia.K+1):
-        if not solucao.rota[onibus][viagem]:
+        if viagem not in solucao.rota[onibus]:
            continue
         if solucao.rota[onibus][viagem][-1] != 0:
            ultima_req = solucao.rota[onibus][viagem][-1]
            solucao.rota[onibus][viagem].append(0)
            solucao.chegada[onibus][viagem].append(solucao.chegada[onibus][viagem][-1] + instancia.T[ultima_req][0] + instancia.s[ultima_req])
-           solucao.arcos[onibus][viagem].append((ultima_req, 0))
   f_objetivo(solucao, instancia)
   return solucao
 
 class MACS:
-  def __init__(self, instancia: Dados):
+  def __init__(self, instancia: Dados, solucao_inicial: Solucao):
     self.instancia = instancia
     self.requisicoes = dict(sorted(le_requisicoes(instancia).items(), key=lambda item: item[1]))
+
+    self.avaliacoes = 0
+    self.solucoes_exploradas = 0
+    self.solucoes_factiveis = 0
+    self.melhorias = 0
+
+    self.sol_inicial = solucao_inicial
 
     self.grafo = grafo.Graph()
     for i, req_i in self.requisicoes.items():
       for j, req_j in self.requisicoes.items():
-        if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j] and req_i != req_j:
+        if req_i != req_j:
+          if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j]:
             self.grafo.add_edge(i, j, self.instancia.T[i][j])
+          else:
+            self.grafo.add_edge(i, j, 100000)
 
     for req in self.requisicoes.keys():
        self.grafo.add_edge(0, req, self.instancia.c[0][req])
 
-    self.feromonios_onibus = {i: {k: 1 for k in range(1,instancia.K+1)} for i in range(1,instancia.n+1)}
-    self.feromonios_rota = {i: {j: 1 for j in range(0,instancia.n+1)} for i in range(0,instancia.n+1)}
-    self.feromonios_garagem = {i: 1 for i in range(1,instancia.n+1)}
-
-  def __seleciona_requisicao(self, requisicoes):
-    i = random.choice(list(requisicoes.keys()))
-    return i
-  
-  def __seleciona_onibus(self, distribuicoes: dict, requisicao: 
-                         int, alpha: float, beta: float):
-    servico_maximo = self.instancia.Tmax
-
-    servico_onibus = {k: 0 for k in range(1, self.instancia.K+1)}
-    servico_restante_onibus = {k: 0 for k in range(1, self.instancia.K+1)}
-    for onibus, req_lista in distribuicoes.items():
-      for i, req in enumerate(req_lista):
-        if (i+1) >= len(req_lista):
-           continue
-        servico_onibus[onibus] += self.instancia.T[req][req_lista[i+1]] + self.instancia.s[req]
-      servico_restante_onibus[onibus] = servico_maximo - servico_onibus[onibus]
-
-    atratividade1 = {k: 0 for k in range(1,self.instancia.K +1)}
-    atratividade2 = {k: 0 for k in range(1,self.instancia.K +1)}
-    atratividade = {k: 0 for k in range(1,self.instancia.K +1)}
-    for k in range(1, self.instancia.K+1):
-      requisicoes_distribuicao = {req: self.requisicoes[req] for req in distribuicoes[k]}
-
-      atratividade1[k] = servico_restante_onibus[k] / (sum(servico_restante_onibus.values()))
-      
-      atratividade2[k] = math.exp(
-         -(abs(max(requisicoes_distribuicao.values()).e - self.requisicoes[requisicao].e))/self.instancia.Tmax) if distribuicoes[k] else math.exp(-(self.requisicoes[requisicao].e)/self.instancia.Tmax)
-
-      atratividade[k] = atratividade1[k] * atratividade2[k]
-
-    vontade = {k: (atratividade[k]**beta) * (self.feromonios_onibus[requisicao][k]**alpha)
-                    for k in range(1, self.instancia.K+1)}
-    
-    probabilidades = {k: vontade[k] / sum(vontade.values())
-                          for k in vontade}
-
-    onibus_possiveis = list(probabilidades.keys())
-    pesos = list(probabilidades.values())
-    onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
-    
-    # for onibus in range(len(onibus_possiveis)):
-    #   onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
-
-    #   if distribuicoes[onibus_escolhido]:
-    #     vizinhos = {i: len(self.grafo.get_neighbors(i)) for i in distribuicoes[onibus_escolhido]}
-    #     max_vizinhos = max(vizinhos.values())
-    #     maiores_vizinhos = [i for i, v in vizinhos.items() if v == max_vizinhos]
-
-    #     rota_encontrada = False
-    #     for i in maiores_vizinhos:
-    #       vertices_subgrafo = distribuicoes[onibus_escolhido].copy()
-    #       vertices_subgrafo.append(requisicao)
-    #       sub_grafo = self.grafo.subgraph(vertices_subgrafo)
-
-    #       if (
-    #           dfs_hamiltoniano(i, requisicao, sub_grafo, set()) or 
-    #           dfs_hamiltoniano(requisicao, i, sub_grafo, set())
-    #       ):
-    #         rota_encontrada = True
-    #         break
-
-    #     if rota_encontrada:
-    #       break
-    #     onibus_possiveis.remove(onibus_escolhido)
-    #     pesos.remove(probabilidades[onibus_escolhido])
-    #   else:
-    #     break
-
-    return onibus_escolhido
-  
-  def __seleciona_proxima_requisicao(self, distribuicao: dict, i: int,
-                                     alpha: float, beta: float):
-     
-    # vizinhos = self.grafo.get_neighbors(i)
-    # vizinhos_factiveis = [vizinho for vizinho in vizinhos if vizinho in distribuicao]
-    atratividade1 = {j: 0 for j in distribuicao}
-    atratividade2 = {j: 0 for j in distribuicao}
-    atratividade = {j: 0 for j in distribuicao}
-
-    menor_distancia = min(
+    self.menor_distancia = min(
       self.instancia.c[i][j]
       for i in range(len(self.instancia.c))
       for j in range(len(self.instancia.c[i]))
       if i != j
     )
 
+    self.feromonios_onibus = {i: {k: 100/solucao_inicial.fx 
+                                  for k in range(1,instancia.K+1)}
+                                  for i in range(1,instancia.n+1)}
+    
+    self.feromonios_rota = {i: {j: 100/solucao_inicial.fx
+                                for j in range(0,instancia.n+1)}
+                                for i in range(0,instancia.n+1)}
+    
+  def __str__(self):
+    return (f"Soluções exploradas: {self.solucoes_exploradas}\nSoluções factíveis encontradas: {self.solucoes_factiveis}\nMelhorias no ótimo encontrado: {self.melhorias}")
+  
+  def __seleciona_requisicao(self, requisicoes):
+    i = random.choice(requisicoes)
+    return i
+  
+  def __seleciona_onibus(self, distribuicoes: dict, requisicao: int, 
+                         servico_restante_onibus: dict, total_servico: float,
+                         alpha: float, beta: float):
+
+    atratividade_onibus = {}
+    vontade_onibus = {}
+    for k in range(1, self.instancia.K+1):
+      atratividade_onibus[k] = servico_restante_onibus[k] / total_servico
+      vontade_onibus[k] = ((atratividade_onibus[k]**beta) *
+                                            (self.feromonios_onibus[requisicao][k]**alpha))
+
+    onibus_possiveis = list(distribuicoes.keys())
+    pesos = list(vontade_onibus.values())
+    onibus_escolhido = random.choices(onibus_possiveis, weights=pesos, k=1)[0]
+
+    return onibus_escolhido
+  
+  def __seleciona_proxima_requisicao(self, distribuicao: list, i: int,
+                                     alpha: float, beta: float):
+    
+    atratividade_rota = {}
+    vontade_rota = {}
     for j in distribuicao:
-      atratividade1[j] = menor_distancia / self.instancia.c[i][j]
-      atratividade2[j] = math.exp(-(abs(self.requisicoes[i].e - self.requisicoes[j].e))/self.instancia.Tmax) if i != 0 else math.exp(-(self.requisicoes[j].e)/self.instancia.Tmax)
-      atratividade[j] = atratividade1[j] * atratividade2[j]
+      atratividade_rota[j] = self.menor_distancia / self.instancia.c[i][j]
+      vontade_rota[j] = ((atratividade_rota[j] ** beta) *
+                              (self.feromonios_rota[i][j] ** alpha))
 
-    vontade = {j: (atratividade[j] ** beta) * (self.feromonios_rota[i][j] ** alpha) 
-               for j in distribuicao}
-    
-    probabilidades = {j: vontade[j] / sum(vontade.values()) 
-                      for j in distribuicao}
-    
-    Requisicao_j = random.choices(
-       distribuicao,
-       probabilidades.values(), k=1)[0]
-
-    # req_restantes = [n for n in distribuicao if n != Requisicao_j]
-    # sub_grafo = self.grafo.subgraph(distribuicao)
-    # saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-    # ultimo = max(saidas, key=saidas.get) if saidas else Requisicao_j
-    # while  (not dfs_hamiltoniano(Requisicao_j, ultimo, sub_grafo,set())
-    #         and len(distribuicao) > 1):
-    #   vizinhos_factiveis.remove(Requisicao_j)
-    #   probabilidades.pop(Requisicao_j)
-    #   Requisicao_j = random.choices(
-    #      vizinhos_factiveis,
-    #      probabilidades.values(), k=1)[0]
-    #   req_restantes = [n for n in distribuicao if n != Requisicao_j]
-    #   saidas = {n: sub_grafo.out_degree(n) for n in req_restantes}
-    #   ultimo = max(saidas, key=saidas.get)
+    pesos = list(vontade_rota.values())
+    Requisicao_j = random.choices(distribuicao, weights=pesos, k=1)[0]
 
     return Requisicao_j
   
-  def __fechar_rota(self, solucao: Solucao, onibus: int,
-                     alfa: float, beta: float):
+  def __fechar_rota(self, solucao: Solucao, onibus: int):
+    viagem = 1
+    mover = False
+    rota = solucao.rota[onibus][viagem].copy()
+    indice = 0
+    for i, r in enumerate(rota):
+      if r == 0 and i != 0 and i+1 < len(rota):
+        mover = True
+        solucao.rota[onibus][1].pop(indice)
+        viagem += 1
+        continue
+      if mover and r != 0:
+        if viagem not in solucao.rota[onibus]:
+          solucao.rota[onibus][viagem] = [0]
+        solucao.rota[onibus][1].remove(r)
+        solucao.rota[onibus][viagem].append(r)
+        continue
+      indice += 1
     
-      return solucao
+    for v in range(1,self.instancia.r+1):
+      if v in solucao.rota[onibus] and solucao.rota[onibus][v][-1] != 0:
+        solucao.rota[onibus][v].append(0)
+    return solucao
+  
+  def __atualiza_feromonios(self, rho: float, solucao: Solucao):
+    incremento_feromonio = 100 / solucao.fx
+    for k, viagens in solucao.rota.items():
+      for v, lista_requisicoes in viagens.items():
+        for req in lista_requisicoes:
+            if req == 0:
+              continue
+            self.feromonios_onibus[req][k] = (rho * self.feromonios_onibus[req][k] +
+                                              incremento_feromonio)
 
-  def otimizar(self, n_formigas, alpha1: float, beta1: float,
-                alpha2: float, beta2: float):
+    for k, viagens in solucao.rota.items():
+      for v, lista_requisicoes in viagens.items():
+        for i, req in enumerate(lista_requisicoes):
+          if i == 0:
+            continue
+          self.feromonios_rota[solucao.rota[k][v][i-1]][req] = (
+            rho * self.feromonios_rota[solucao.rota[k][v][i-1]][req] + 
+            incremento_feromonio)
+    return None
+
+  def __calcula_chegadas(self, solucao: Solucao, k: int):
+    ultima_chegada = 0.0
+    for v, lista_requisicoes in solucao.rota[k].items():
+      chegadas = []
+      for i, req in enumerate(lista_requisicoes):
+        if i == 0:
+          primeira_req = solucao.rota[k][v][1]
+          chegada_real = (self.instancia.e[primeira_req - 1] - self.instancia.s[0] -
+                          self.instancia.T[0][primeira_req])
+          chegada = max(chegada_real, ultima_chegada)
+        else:
+          req_anterior = solucao.rota[k][v][i-1]
+          chegada_real = (chegadas[i-1] + self.instancia.s[req_anterior] + 
+                          self.instancia.T[req_anterior][req])
+          if req != 0:
+            chegada = max(chegada_real, self.instancia.e[req - 1])
+          else:
+            chegada = chegada_real
+        chegadas.append(chegada)
+      ultima_chegada = chegadas[-1]
+      solucao.chegada[k][v] = chegadas
+    return True
+
+  def __penaliza_feromonios_rota(self, solucao: Solucao, penalidade: float):
+    for k, viagens in solucao.rota.items():
+      for v, lista_requisicoes in viagens.items():
+        for i, req in enumerate(lista_requisicoes):
+          if i == 0:
+            continue
+          self.feromonios_rota[solucao.rota[k][v][i-1]][req] = (
+            penalidade * self.feromonios_rota[solucao.rota[k][v][i-1]][req])
+    return None
+  
+  def __penaliza_feromonios_onibus(self, solucao: Solucao, penalidade: float):
+    for k, viagens in solucao.rota.items():
+      for v, lista_requisicoes in viagens.items():
+        for req in lista_requisicoes:
+            if req == 0:
+              continue
+            self.feromonios_onibus[req][k] = (penalidade * self.feromonios_onibus[req][k])
+    return None
+
+  def otimizar(self, n_formigas, max_iter, alpha1: float, beta1: float,
+                alpha2: float, beta2: float, rho: float):
     m = n_formigas
     K = self.instancia.K
 
-    melhor_solucao = Constroi_solucao_inicial(self.instancia)
+    melhor_solucao = self.sol_inicial
+    print(melhor_solucao.fx)
+    self.feromonios_onibus
+    self.avaliacoes += 1
 
-    for f in range(m):
+    while self.avaliacoes < max_iter:
+      solucoes = []
+      for f in range(m):
 
-      sol = Solucao()
-      for k in range(1, self.instancia.K+1):
-        sol.chegada[k] = {}
-        sol.rota[k] = {}
-        for v in range(1, self.instancia.r+1):
-            sol.chegada[k][v] = []
-            sol.rota[k][v] = []
+        sol = Solucao()
+        for k in range(1, self.instancia.K+1):
+          sol.chegada[k] = {}
+          sol.rota[k] = {}
 
-      Q = self.requisicoes.copy()
-      Qk = {k: [] for k in range(1, K+1)}
+        Q = list(self.requisicoes.keys())
+        Qk = {k: [] for k in range(1, K+1)}
 
-      while Q:
-        i = self.__seleciona_requisicao(Q)
-        k = self.__seleciona_onibus(Qk, i, alpha1, beta1)
-        Qk[k].append(i)
-        Q.pop(i)
-        continue
+        servico_restante_onibus = {k: self.instancia.Tmax for k in range(1, self.instancia.K+1)}
+        total_servico = self.instancia.Tmax * self.instancia.K
+        while Q:
+          i = self.__seleciona_requisicao(Q)
+          k = self.__seleciona_onibus(Qk, i, servico_restante_onibus, total_servico, alpha1, beta1)
+          servico_restante_onibus[k] -= self.instancia.s[i]
+          total_servico -= self.instancia.s[i]
+          Qk[k].append(i)
+          Q.remove(i)
+          continue
 
-      for k in range(1, self.instancia.K+1):
+        for k in range(1, self.instancia.K+1):
 
-        if Qk[k]: sol.rota[k][1].append(0)
+          if Qk[k]: sol.rota[k][1] = [0]
 
-        while Qk[k]:
-          i = sol.rota[k][1][-1]
-          j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
-
-          #######
-
-          chegada_i = (max(
-            self.requisicoes[j].e - self.instancia.s[i] - self.instancia.T[i][j], 0) 
-            if i == 0 else sol.chegada[k][1][-1])
-
-          sol.rota[k][1].append(j)
-          if i == 0: sol.chegada[k][1].append(chegada_i)
-          sol.chegada[k][1].append(max(
-             chegada_i + self.instancia.s[i] + self.instancia.T[i][j],
-             self.instancia.e[j-1]))
-          Qk[k].remove(j)
-        if sol.rota[k][1]: self.__fechar_rota(sol, k, 0, 1)
-      sol.fx = f_objetivo(sol, self.instancia)
-
-      melhor_solucao = sol if sol.fx < melhor_solucao.fx else melhor_solucao
-
+          while Qk[k]:
+            i = sol.rota[k][1][-1]
+            n_viagens = sol.rota[k][1].count(0)
+            if (0 not in Qk[k] and i != 0 and n_viagens < self.instancia.r): Qk[k].append(0)
+            j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
+            sol.rota[k][1].append(j)
+            Qk[k].remove(j)
+          if 1 in sol.rota[k]: self.__fechar_rota(sol, k)
+          self.__calcula_chegadas(sol, k)
+        
+        solucoes.append(sol)
+      for solucao in solucoes:
+        self.solucoes_exploradas +=1
+        if solucao.factivel(self.instancia): 
+          self.solucoes_factiveis+=1
+          f_objetivo(solucao, self.instancia)
+          self.avaliacoes += 1
+          if solucao.fx < melhor_solucao.fx:
+            self.melhorias+=1
+            melhor_solucao = solucao
+            print(f"fx: {melhor_solucao.fx}, solucoes factiveis exploradas: {self.solucoes_factiveis}")
+          if self.avaliacoes > max_iter:
+            return melhor_solucao
+        else:
+            self.__penaliza_feromonios_rota(solucao, 0.7)
+            self.__penaliza_feromonios_onibus(solucao, 0.7)
+          
+      self.__atualiza_feromonios(rho, melhor_solucao)
 
     return melhor_solucao
 
-instancia = carrega_dados_json("dados/pequena.json")
-
-macs = MACS(instancia)
-solucao = macs.otimizar(100, alpha1=0,beta1=1,alpha2=0,beta2=1)
-fim = time.time()
-print(f"Tempo de execução: {fim - inicio:.4f} segundos")
-print(solucao.fx)
+instancia = carrega_dados_json("dados/media.json")
+solucao = Solucao()
+solucao.carregar("dados/otimo_media.json")
 print(solucao)
-print(res.eh_factivel(solucao, instancia))
-pequena_otima = Solucao()
-pequena_otima.carregar("dados/otimo_pequena.json")
-f_objetivo(pequena_otima, instancia)
-print("#####\n", pequena_otima, pequena_otima.fx)
+print(solucao.fx)
+
+# solucao_inicial = Constroi_solucao_inicial(instancia)
+# print(solucao_inicial)
+# macs = MACS(instancia, solucao_inicial)
+# solucao = macs.otimizar(n_formigas=10, max_iter=2100, alpha1=0.5,beta1=0.9,
+#                         alpha2=0.5,beta2=0.9,rho=0.6)
+# fim = time.time()
+# print(macs)
+# print(f"Tempo de execução: {fim - inicio:.4f} segundos")
+# print(solucao.fx)
+# print(solucao)
+# print(solucao.factivel(instancia, verbose=True))
