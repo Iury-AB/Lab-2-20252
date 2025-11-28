@@ -211,6 +211,14 @@ class Solucao:
 
                 self.chegada[k][v] = instantes  # Armazenar tempos de chegada
 
+            for v in list(self.rota[k].keys()):
+                if not self.rota[k][v]:
+                    del self.rota[k][v]
+
+            for v in list(self.chegada[k].keys()):
+                if not self.chegada[k][v]:
+                    del self.chegada[k][v]
+
         # Armazenar valor da função objetivo (custo total da solução)
         self.fx = modelo.ObjVal
 

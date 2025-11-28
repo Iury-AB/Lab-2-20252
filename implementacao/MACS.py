@@ -15,7 +15,7 @@ import random
 import math
 import gurobipy as gp
 from gurobipy import GRB
-from implementacao.busca_em_largura import bfs_existe_rota, dfs_hamiltoniano
+import copy
 
 class Requisicao:
     def __init__(self, e, l):
@@ -384,6 +384,241 @@ class MACS:
             self.feromonios_onibus[req][k] = (penalidade * self.feromonios_onibus[req][k])
     return None
 
+  def __cria_modelo_exato(self):
+    modelo = gp.Model()
+
+    N = list(range(1, self.instancia.n+1))
+    N0 = list(range(self.instancia.n+1))
+    V = list(range(1, self.instancia.r+1))
+    K = list(range(1, self.instancia.K+1))
+    x = {}
+    y = {}
+    B = {}
+    M = 1e7
+
+    for k in K:
+        for v in V:
+            for i in N0:
+                for j in N0:
+                    if i != j:
+                        x[i, j, v, k] = modelo.addVar(vtype=GRB.BINARY,
+                                                name=f"x_{i}_{j}_{v}_{k}")
+
+                B[i, v, k] = modelo.addVar(vtype=GRB.CONTINUOUS,
+                                            lb=0.0,
+                                            name=f"B_{i}_{v}_{k}")
+                
+            y[v, k] = modelo.addVar(vtype=GRB.BINARY,
+                                    name=f"y_{v}_{k}")
+    modelo.update()
+
+    funcao_objetivo = modelo.setObjective(
+        gp.quicksum(self.instancia.c[i, j] * x[i, j, v, k] 
+                    for i in N0 
+                    for j in N0
+                    for v in V
+                    for k in K
+                    if i != j),
+        GRB.MINIMIZE
+    )
+
+    for j in N:
+        modelo.addConstr(
+            gp.quicksum(x[i, j, v, k]
+                        for i in N0
+                        for k in K
+                        for v in V
+                        if i != j) == 1,
+            name=f"atendimento_{j}"
+    )
+        
+    for k in K:
+        for v in V:
+            for j in N:
+
+                entrada = gp.quicksum(x[i, j, v, k]
+                                    for i in N0
+                                    if i != j)
+
+                saida = gp.quicksum(x[j, i, v, k]
+                                    for i in N0
+                                    if i != j)
+
+                modelo.addConstr(
+                    entrada - saida == 0,
+                    name=f"conservacao_{j}_{v}_{k}"
+                )
+
+    for k in K:
+        for v in V:
+            modelo.addConstr(
+                gp.quicksum(x[0, j, v, k]
+                            for j in N) == y[v, k],
+                name=f"inicio_viagem_{v}_{k}"
+            )
+            modelo.addConstr(
+                gp.quicksum(x[i, 0, v, k]
+                            for i in N) == y[v, k],
+                name=f"termino_viagem_{v}_{k}"
+            )
+
+    for k in K:
+        for v in V:
+            if v > 1:
+                modelo.addConstr(
+                    y[v, k] <= y[v-1, k],
+                    name=f"sequencia_viagem_{v}_{k}"
+                )
+
+    for k in K:
+        for v in V:
+            for i in N:
+                modelo.addConstr(
+                    B[i, v, k] >= self.instancia.e[i-1] * gp.quicksum(x[j, i, v, k]
+                    for j in N0 if i != j),
+                    name=f"janela_inferior_{i}_{v}_{k}"
+                )
+                modelo.addConstr(
+                    B[i, v, k] <= self.instancia.l[i-1] * gp.quicksum(x[j, i, v, k]
+                    for j in N0 if i != j),
+                    name=f"janela_superior_{i}_{v}_{k}"
+                )
+
+    for k in K:
+        for v in V:
+            for i in N0:
+                for j in N0:
+                    
+                    if i == j:
+                        continue
+                    
+                    elif i == 0 and v == 1:
+                        modelo.addConstr(
+                            self.instancia.s[0] + self.instancia.T[0, j] - M * (1 - x[0, j, 1, k]) 
+                            <= B[j, 1, k],
+                            name=f"fluxo_tempo_intra_0_{j}_{v}_{k}"
+                        )
+
+                    elif i != 0:
+                        modelo.addConstr(
+                            B[i, v, k] + self.instancia.s[i] + self.instancia.T[i, j]
+                            - M * (1 - x[i, j, v, k]) <= B[j, v, k],
+                        name=f"fluxo_tempo_intra_{i}_{j}_{v}_{k}"
+                    )
+                
+                if v > 1 and i != 0:
+                    modelo.addConstr(
+                        B[0, v-1, k] + self.instancia.s[0] + self.instancia.T[0, i] 
+                        - M * (1 - x[0, i, v, k]) <= B[i, v, k],
+                        name=f"fluxo_tempo_inter_{i}_{v}_{k}"
+                    )
+
+    for k in K:
+        for v in V:
+            for i in N:
+                modelo.addConstr(
+                    B[0, v, k] - B[i, v, k] + self.instancia.s[0] + self.instancia.T[0, i] 
+                    - M*(1 - x[0, i, v, k]) <= self.instancia.Tmax * y[v, k],
+                    name=f"tempo_viagem_{v}_{k}"
+                )
+    
+    modelo.update()
+
+    return modelo
+
+  def __busca_local_gurobi(self, solucao: Solucao, limite_tempo: float, node_limit, iter_limit):
+    solucao.carrega_para_modelo_gurobi(self.modelo,
+                                                  self.instancia)
+    
+    self.modelo.setParam('OutputFlag', 0)
+    self.modelo.update()
+    #self.modelo.setParam(GRB.Param.TimeLimit, limite_tempo)
+    self.modelo.setParam(GRB.Param.MIPFocus, 1)
+    self.modelo.setParam(GRB.Param.NodeLimit, node_limit)
+    #self.modelo.setParam(GRB.Param.IterationLimit, iter_limit)
+
+    self.modelo.optimize()
+
+    nos_explorados = self.modelo.NodeCount
+    iteracoes_utilizadas = self.modelo.IterCount
+    print(iteracoes_utilizadas)
+
+    self.avaliacoes += nos_explorados + iteracoes_utilizadas
+
+    solucao_encontrada = Solucao()
+    solucao_encontrada.carrega_modelo_gurobi(self.modelo,
+                                             self.instancia)
+
+    return solucao_encontrada
+
+  def __realocar_requisicao(self, solucao: Solucao, requisicao: int,
+                           onibus_origem: int, viagem_origem: int,
+                           onibus_destino: int, viagem_destino: int):
+
+    if requisicao not in solucao.rota[onibus_origem][viagem_origem] or requisicao == 0:
+      return solucao, False
+    
+    indice_req = solucao.rota[onibus_origem][viagem_origem].index(requisicao)
+    rota_origem = (solucao.rota[onibus_origem][viagem_origem][0:indice_req] +
+                   solucao.rota[onibus_origem][viagem_origem][indice_req+1:])
+    
+    nova_rota_destino = []
+    distancias = {}
+    rota_destino = solucao.rota[onibus_destino][viagem_destino]
+    for req_idx, req in enumerate(rota_destino):
+      if req_idx == 0:
+        continue
+      
+      vizinhos = self.grafo.get_neighbors(requisicao)
+      vizinhos_anterior = self.grafo.get_neighbors(rota_destino[req_idx-1])
+      if req in vizinhos and requisicao in vizinhos_anterior:
+        distancias[req_idx] = self.instancia.c[requisicao][req]
+        break
+
+    if distancias:
+      melhor_substituicao = min(distancias, key=distancias.get)
+      nova_rota_destino = rota_destino[0:melhor_substituicao] + [requisicao] + rota_destino[melhor_substituicao:]
+    
+    realocou = False
+    nova_solucao = copy.deepcopy(solucao)
+    if nova_rota_destino:
+      realocou = True
+      nova_solucao.rota[onibus_destino][viagem_destino] = nova_rota_destino
+      nova_solucao.rota[onibus_origem][viagem_origem] = rota_origem
+      self.__calcula_chegadas_gurobi(nova_solucao, onibus_origem)
+      self.__calcula_chegadas_gurobi(nova_solucao, onibus_destino)
+
+    return nova_solucao, realocou
+
+  def __best_improvement_realocacao(self, solucao: Solucao, max_avaliacoes):
+    solucao_incumbente = None
+    melhor_encontrado = copy.deepcopy(solucao)
+    for k_origem, viagens_origem in solucao.rota.items():
+      for k_destino, viagens_destino in solucao.rota.items():
+        if k_origem == k_destino:
+          continue
+
+        for v_origem, lista_requisicoes in solucao.rota[k_origem].items():
+          for r in lista_requisicoes:
+            if r == 0:
+               continue
+            
+            for v_destino in solucao.rota[k_destino].keys():
+
+              solucao_incumbente = self.__realocar_requisicao(
+                solucao, r, k_origem, v_origem, k_destino, v_destino)
+
+              if solucao_incumbente[1]:
+                if solucao_incumbente[0].factivel(self.instancia):
+                  f_objetivo(solucao_incumbente[0], self.instancia)
+                  self.avaliacoes += 1
+                  if solucao_incumbente[0].fx < melhor_encontrado.fx:
+                    melhor_encontrado = solucao_incumbente[0]
+              if self.avaliacoes >= max_avaliacoes:
+                return melhor_encontrado
+
+    return melhor_encontrado
+
   def otimizar(self, n_formigas, max_avaliacoes, alpha1: float, beta1: float,
                 alpha2: float, beta2: float, rho: float):
     m = n_formigas
@@ -445,6 +680,11 @@ class MACS:
 
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
+            # Busca Local
+            if self.avaliacoes < max_avaliacoes:
+              solucao = self.__best_improvement_realocacao(solucao, max_avaliacoes)
+              print(f"Busca local melhorou a solucao para fx = {solucao.fx}")
+            
             melhor_solucao = solucao
             print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
             self.__atualiza_feromonios(rho, melhor_solucao)
