@@ -13,6 +13,8 @@ import Restricoes as res
 import numpy as np
 import random
 import math
+import gurobipy as gp
+from gurobipy import GRB
 from implementacao.busca_em_largura import bfs_existe_rota, dfs_hamiltoniano
 
 class Requisicao:
@@ -117,6 +119,7 @@ class MACS:
     self.requisicoes = dict(sorted(le_requisicoes(instancia).items(), key=lambda item: item[1]))
 
     self.avaliacoes = 0
+    self.iteracoes = 0
     self.solucoes_exploradas = 0
     self.solucoes_factiveis = 0
     self.melhorias = 0
@@ -127,13 +130,12 @@ class MACS:
     for i, req_i in self.requisicoes.items():
       for j, req_j in self.requisicoes.items():
         if req_i != req_j:
-          if req_j.l - req_i.e >= instancia.s[i] + instancia.T[i][j]:
+          if req_j.l >= req_i.e + instancia.s[i] + instancia.T[i][j]:
             self.grafo.add_edge(i, j, self.instancia.T[i][j])
-          else:
-            self.grafo.add_edge(i, j, 100000)
 
     for req in self.requisicoes.keys():
-       self.grafo.add_edge(0, req, self.instancia.c[0][req])
+      self.grafo.add_edge(0, req, self.instancia.c[0][req])
+      self.grafo.add_edge(req, 0, self.instancia.c[0][req])
 
     self.menor_distancia = min(
       self.instancia.c[i][j]
@@ -146,9 +148,14 @@ class MACS:
                                   for k in range(1,instancia.K+1)}
                                   for i in range(1,instancia.n+1)}
     
-    self.feromonios_rota = {i: {j: 100/solucao_inicial.fx
-                                for j in range(0,instancia.n+1)}
-                                for i in range(0,instancia.n+1)}
+    self.feromonios_rota = {i: {j: (
+        1000/solucao_inicial.fx 
+        if i == 0 or j == 0
+        else 1000/solucao_inicial.fx
+        if self.requisicoes[j].l >= self.requisicoes[i].e + instancia.s[i] + instancia.T[i][j] and i != 0 and j != 0
+        else 1e-100)
+        for j in range(0,instancia.n+1)}
+      for i in range(0,instancia.n+1)}
     
   def __str__(self):
     return (f"Soluções exploradas: {self.solucoes_exploradas}\nSoluções factíveis encontradas: {self.solucoes_factiveis}\nMelhorias no ótimo encontrado: {self.melhorias}")
@@ -214,7 +221,7 @@ class MACS:
     return solucao
   
   def __atualiza_feromonios(self, rho: float, solucao: Solucao):
-    incremento_feromonio = 100 / solucao.fx
+    incremento_feromonio = 1000 / solucao.fx
     for k, viagens in solucao.rota.items():
       for v, lista_requisicoes in viagens.items():
         for req in lista_requisicoes:
@@ -256,6 +263,108 @@ class MACS:
       solucao.chegada[k][v] = chegadas
     return True
 
+  def __calcula_chegadas_gurobi(self, solucao: Solucao, k: int):
+    modelo = gp.Model()
+    B = {}
+    
+    for v, lista_requisicoes in solucao.rota[k].items():
+      Qk = lista_requisicoes
+      for i in Qk[1:]:
+        B[i, v] = modelo.addVar(vtype=GRB.CONTINUOUS,
+                              lb = 0.0,
+                              name=f"B_{i}_{v}_{k}")
+
+      modelo.update()
+
+      for indice_i, i in enumerate(Qk):
+        if i != 0:
+          modelo.addConstr(
+            B[i, v] >= self.instancia.e[i - 1],
+            name = f"janela abertura {i} {v}")
+          
+          modelo.addConstr(
+            B[i, v] <= self.instancia.l[i - 1],
+            name = f"janela fechamento {i} {v}")
+          
+        for indice_j, j in enumerate(Qk):
+          if i == j:
+            continue
+
+          elif i == 0 and v == 1 and Qk[indice_j - 1] == i and indice_i+1 != len(Qk):
+            modelo.addConstr(
+              B[j, 1] >= self.instancia.s[0] + self.instancia.T[0, j],
+              name=f"fluxo_tempo_intra_0_{j}_{v}_{k}"
+            )
+
+          elif i != 0 and Qk[indice_j - 1] == i:
+            modelo.addConstr(
+                      B[i, v] + self.instancia.s[i] + self.instancia.T[i, j] <= B[j, v],
+                      name=f"fluxo_tempo_intra_{i}_{j}_{v}_{k}"
+              )
+            
+        if v > 1 and i != 0 and Qk[indice_i - 1] == 0:
+              modelo.addConstr(
+                  B[0, v-1] + self.instancia.s[0] + self.instancia.T[0, i] <= B[i, v],
+                  name=f"fluxo_tempo_inter_{i}_{v}_{k}"
+              )
+
+    modelo.update()
+    sub_fobj = modelo.setObjective(B[0, 1], GRB.MINIMIZE)
+    modelo.setParam(GRB.param.OutputFlag, 0)
+    modelo.setParam(GRB.Param.MIPFocus, 1)
+    modelo.optimize()
+
+    if modelo.Status == 3:
+      ultimo_tempo = 0
+      for v, lista_requisicoes in solucao.rota[k].items():
+        solucao.chegada[k][v] = []
+        for requisicao in lista_requisicoes:
+          if requisicao == 0:
+            solucao.chegada[k][v].append(ultimo_tempo)
+            continue
+          solucao.chegada[k][v].append(self.instancia.l[requisicao-1])
+          ultimo_tempo = (solucao.chegada[k][v][-1] + self.instancia.T[requisicao][0] +
+                          self.instancia.s[requisicao-1])
+    else:
+      for v, lista_requisicoes in solucao.rota[k].items():
+        instantes = []
+        for requisicao in lista_requisicoes[1:]:  # Para cada ponto da rota (exceto primeiro 0)
+            # Obter tempo de chegada da variável B[requisicao,v,k]
+            var_B = modelo.getVarByName(f"B_{requisicao}_{v}_{k}")
+            if var_B is not None:
+                instantes.append(var_B.X)
+                if requisicao == lista_requisicoes[1]:
+                    tempo_saida_garagem = var_B.X - self.instancia.T[0][requisicao] - self.instancia.s[0]
+                    instantes.insert(0, tempo_saida_garagem)
+        solucao.chegada[k][v] = instantes
+    
+    return None
+
+  def __penaliza_feromonios_rota_detalhado(self, solucao: Solucao, penalidade: float):
+    for k, viagens in solucao.rota.items():
+      for v, lista_requisicoes in viagens.items():
+        tempo_maximo = res.atende_tempo_maximo(solucao.chegada[k][v], self.instancia)
+
+        if(not tempo_maximo[1]):
+          for i, req in enumerate(lista_requisicoes):
+            if i == 0 or req == 0 or lista_requisicoes[i-1] == 0:
+              continue
+
+            fim_janela_anterior = self.instancia.l[lista_requisicoes[i-1]-1]
+            abertura_janela_atual = self.instancia.e[req-1]
+            espaco_vazio = abertura_janela_atual - fim_janela_anterior
+            peso = 1 + 5*math.log(1 + 0.005*abs(espaco_vazio))
+
+            feromonio_atualizado = (
+              penalidade * (1/peso) * 
+              self.feromonios_rota[lista_requisicoes[i-1]][req])
+            
+            self.feromonios_rota[lista_requisicoes[i-1]][req] = (
+              feromonio_atualizado if feromonio_atualizado > 0 
+              else self.feromonios_rota[lista_requisicoes[i-1]][req])
+        
+    return None
+  
   def __penaliza_feromonios_rota(self, solucao: Solucao, penalidade: float):
     for k, viagens in solucao.rota.items():
       for v, lista_requisicoes in viagens.items():
@@ -275,7 +384,7 @@ class MACS:
             self.feromonios_onibus[req][k] = (penalidade * self.feromonios_onibus[req][k])
     return None
 
-  def otimizar(self, n_formigas, max_iter, alpha1: float, beta1: float,
+  def otimizar(self, n_formigas, max_avaliacoes, alpha1: float, beta1: float,
                 alpha2: float, beta2: float, rho: float):
     m = n_formigas
     K = self.instancia.K
@@ -285,7 +394,8 @@ class MACS:
     self.feromonios_onibus
     self.avaliacoes += 1
 
-    while self.avaliacoes < max_iter:
+    while self.avaliacoes < max_avaliacoes:
+      self.iteracoes += 1
       solucoes = []
       for f in range(m):
 
@@ -320,43 +430,47 @@ class MACS:
             sol.rota[k][1].append(j)
             Qk[k].remove(j)
           if 1 in sol.rota[k]: self.__fechar_rota(sol, k)
-          self.__calcula_chegadas(sol, k)
+          if sol.rota[k]: self.__calcula_chegadas(sol, k)
         
         solucoes.append(sol)
-      for solucao in solucoes:
+      for sol_idx, solucao in enumerate(solucoes):
         self.solucoes_exploradas +=1
+
         if solucao.factivel(self.instancia): 
           self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
+          self.__atualiza_feromonios(rho, solucao)
+          print(f"fx encontrado: {solucao.fx}, solucoes factiveis exploradas: {self.solucoes_factiveis} de {self.solucoes_exploradas} total")
+
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
             melhor_solucao = solucao
-            print(f"fx: {melhor_solucao.fx}, solucoes factiveis exploradas: {self.solucoes_factiveis}")
-          if self.avaliacoes > max_iter:
+            print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
+            self.__atualiza_feromonios(rho, melhor_solucao)
+
+          if self.avaliacoes > max_avaliacoes:
             return melhor_solucao
         else:
-            self.__penaliza_feromonios_rota(solucao, 0.7)
-            self.__penaliza_feromonios_onibus(solucao, 0.7)
-          
-      self.__atualiza_feromonios(rho, melhor_solucao)
+            self.__penaliza_feromonios_rota(solucao, 0.9)
+            self.__penaliza_feromonios_onibus(solucao, 0.9)
+
+      self.__atualiza_feromonios(1, melhor_solucao)
 
     return melhor_solucao
 
-instancia = carrega_dados_json("dados/media.json")
-solucao = Solucao()
-solucao.carregar("dados/otimo_media.json")
-print(solucao)
-print(solucao.fx)
+instancia = carrega_dados_json("dados/pequena.json")
 
-# solucao_inicial = Constroi_solucao_inicial(instancia)
-# print(solucao_inicial)
-# macs = MACS(instancia, solucao_inicial)
-# solucao = macs.otimizar(n_formigas=10, max_iter=2100, alpha1=0.5,beta1=0.9,
-#                         alpha2=0.5,beta2=0.9,rho=0.6)
-# fim = time.time()
-# print(macs)
-# print(f"Tempo de execução: {fim - inicio:.4f} segundos")
-# print(solucao.fx)
-# print(solucao)
-# print(solucao.factivel(instancia, verbose=True))
+random.seed(123)
+solucao_inicial = Constroi_solucao_inicial(instancia)
+print(solucao_inicial)
+macs = MACS(instancia, solucao_inicial)
+
+solucao = macs.otimizar(n_formigas=50, max_avaliacoes=2100, alpha1=0.2,beta1=0.2,
+                         alpha2=0.5,beta2=0.5,rho=0.6)
+fim = time.time()
+print(macs)
+print(f"Tempo de execução: {fim - inicio:.4f} segundos")
+print(solucao.fx)
+print(solucao)
+print(solucao.factivel(instancia, verbose=True))

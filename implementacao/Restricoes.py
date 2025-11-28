@@ -88,8 +88,8 @@ def atende_tempo_maximo(chegadas: list, dados:Dados):
   tempo_inicio_v = chegadas[0]
   duracao_v = tempo_fim_v - tempo_inicio_v
   if duracao_v > dados.Tmax:
-      return False
-  return True
+      return duracao_v, False
+  return 0, True
 
 def limite_de_tempo_por_viagem(solucao: Solucao, dados: Dados) -> bool:
   # solucao.chegada[k][v][-1] - solucao.chegada[k][v][0] <= dados.Tmax
@@ -97,7 +97,7 @@ def limite_de_tempo_por_viagem(solucao: Solucao, dados: Dados) -> bool:
       for v, rota in viagens.items():
           if not rota or len(rota) <=1:
             continue  # Pula viagens vazias ou sem paradas intermediárias
-          if not atende_tempo_maximo(rota, dados):
+          if not atende_tempo_maximo(rota, dados)[1]:
             return False
   return True
 
