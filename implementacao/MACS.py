@@ -584,8 +584,15 @@ class MACS:
     if nova_rota_destino:
       realocou = True
       nova_solucao.rota[onibus_destino][viagem_destino] = nova_rota_destino
-      nova_solucao.rota[onibus_origem][viagem_origem] = rota_origem
-      self.__calcula_chegadas_gurobi(nova_solucao, onibus_origem)
+      if len(rota_origem) > 2:
+        nova_solucao.rota[onibus_origem][viagem_origem] = rota_origem
+        self.__calcula_chegadas_gurobi(nova_solucao, onibus_origem)
+      else:
+        del nova_solucao.rota[onibus_origem][viagem_origem]
+        for v in list(nova_solucao.rota[onibus_origem].keys()):
+          if v > viagem_origem:
+            nova_solucao.rota[onibus_origem][v-1] = nova_solucao.rota[onibus_origem].pop(v)
+        
       self.__calcula_chegadas_gurobi(nova_solucao, onibus_destino)
 
     return nova_solucao, realocou
@@ -593,6 +600,8 @@ class MACS:
   def __best_improvement_realocacao(self, solucao: Solucao, max_avaliacoes):
     solucao_incumbente = None
     melhor_encontrado = copy.deepcopy(solucao)
+    
+    
     for k_origem, viagens_origem in solucao.rota.items():
       for k_destino, viagens_destino in solucao.rota.items():
         if k_origem == k_destino:
@@ -607,13 +616,17 @@ class MACS:
 
               solucao_incumbente = self.__realocar_requisicao(
                 solucao, r, k_origem, v_origem, k_destino, v_destino)
-
+              self.solucoes_exploradas += 1
+              
               if solucao_incumbente[1]:
                 if solucao_incumbente[0].factivel(self.instancia):
                   f_objetivo(solucao_incumbente[0], self.instancia)
                   self.avaliacoes += 1
+                  self.solucoes_factiveis += 1
                   if solucao_incumbente[0].fx < melhor_encontrado.fx:
+                    self.melhorias += 1
                     melhor_encontrado = solucao_incumbente[0]
+
               if self.avaliacoes >= max_avaliacoes:
                 return melhor_encontrado
 
@@ -675,38 +688,44 @@ class MACS:
           self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
-          self.__atualiza_feromonios(rho, solucao)
-          print(f"fx encontrado: {solucao.fx}, solucoes factiveis exploradas: {self.solucoes_factiveis} de {self.solucoes_exploradas} total")
+          self.__atualiza_feromonios(1, solucao)
+          print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
 
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
-            # Busca Local
-            if self.avaliacoes < max_avaliacoes:
-              solucao = self.__best_improvement_realocacao(solucao, max_avaliacoes)
-              print(f"Busca local melhorou a solucao para fx = {solucao.fx}")
             
             melhor_solucao = solucao
             print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
-            self.__atualiza_feromonios(rho, melhor_solucao)
 
           if self.avaliacoes > max_avaliacoes:
             return melhor_solucao
         else:
             self.__penaliza_feromonios_rota(solucao, 0.9)
             self.__penaliza_feromonios_onibus(solucao, 0.9)
+      
+      # Busca Local
+      if self.avaliacoes < max_avaliacoes:
+        solucao_busca = copy.deepcopy(melhor_solucao)
+        melhor_fx = solucao_busca.fx
+        while True:
+          solucao_busca = self.__best_improvement_realocacao(solucao_busca, max_avaliacoes)
+          if not (solucao_busca.fx < melhor_fx):
+            break
+          else:
+            melhor_fx = solucao_busca.fx
+        melhor_solucao = solucao_busca
 
-      self.__atualiza_feromonios(1, melhor_solucao)
+      self.__atualiza_feromonios(rho, melhor_solucao)
 
     return melhor_solucao
 
 instancia = carrega_dados_json("dados/pequena.json")
 
-random.seed(123)
 solucao_inicial = Constroi_solucao_inicial(instancia)
 print(solucao_inicial)
 macs = MACS(instancia, solucao_inicial)
 
-solucao = macs.otimizar(n_formigas=50, max_avaliacoes=2100, alpha1=0.2,beta1=0.2,
+solucao = macs.otimizar(n_formigas=50, max_avaliacoes=2100, alpha1=0.2,beta1=0,
                          alpha2=0.5,beta2=0.5,rho=0.6)
 fim = time.time()
 print(macs)
@@ -714,3 +733,7 @@ print(f"Tempo de execução: {fim - inicio:.4f} segundos")
 print(solucao.fx)
 print(solucao)
 print(solucao.factivel(instancia, verbose=True))
+
+solucao_otima = Solucao()
+solucao_otima.carregar("dados/otimo_pequena.json")
+print(solucao_otima)
