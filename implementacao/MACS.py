@@ -339,31 +339,6 @@ class MACS:
         solucao.chegada[k][v] = instantes
     
     return None
-
-  def __penaliza_feromonios_rota_detalhado(self, solucao: Solucao, penalidade: float):
-    for k, viagens in solucao.rota.items():
-      for v, lista_requisicoes in viagens.items():
-        tempo_maximo = res.atende_tempo_maximo(solucao.chegada[k][v], self.instancia)
-
-        if(not tempo_maximo[1]):
-          for i, req in enumerate(lista_requisicoes):
-            if i == 0 or req == 0 or lista_requisicoes[i-1] == 0:
-              continue
-
-            fim_janela_anterior = self.instancia.l[lista_requisicoes[i-1]-1]
-            abertura_janela_atual = self.instancia.e[req-1]
-            espaco_vazio = abertura_janela_atual - fim_janela_anterior
-            peso = 1 + 5*math.log(1 + 0.005*abs(espaco_vazio))
-
-            feromonio_atualizado = (
-              penalidade * (1/peso) * 
-              self.feromonios_rota[lista_requisicoes[i-1]][req])
-            
-            self.feromonios_rota[lista_requisicoes[i-1]][req] = (
-              feromonio_atualizado if feromonio_atualizado > 0 
-              else self.feromonios_rota[lista_requisicoes[i-1]][req])
-        
-    return None
   
   def __penaliza_feromonios_rota(self, solucao: Solucao, penalidade: float):
     for k, viagens in solucao.rota.items():
@@ -383,173 +358,6 @@ class MACS:
               continue
             self.feromonios_onibus[req][k] = (penalidade * self.feromonios_onibus[req][k])
     return None
-
-  def __cria_modelo_exato(self):
-    modelo = gp.Model()
-
-    N = list(range(1, self.instancia.n+1))
-    N0 = list(range(self.instancia.n+1))
-    V = list(range(1, self.instancia.r+1))
-    K = list(range(1, self.instancia.K+1))
-    x = {}
-    y = {}
-    B = {}
-    M = 1e7
-
-    for k in K:
-        for v in V:
-            for i in N0:
-                for j in N0:
-                    if i != j:
-                        x[i, j, v, k] = modelo.addVar(vtype=GRB.BINARY,
-                                                name=f"x_{i}_{j}_{v}_{k}")
-
-                B[i, v, k] = modelo.addVar(vtype=GRB.CONTINUOUS,
-                                            lb=0.0,
-                                            name=f"B_{i}_{v}_{k}")
-                
-            y[v, k] = modelo.addVar(vtype=GRB.BINARY,
-                                    name=f"y_{v}_{k}")
-    modelo.update()
-
-    funcao_objetivo = modelo.setObjective(
-        gp.quicksum(self.instancia.c[i, j] * x[i, j, v, k] 
-                    for i in N0 
-                    for j in N0
-                    for v in V
-                    for k in K
-                    if i != j),
-        GRB.MINIMIZE
-    )
-
-    for j in N:
-        modelo.addConstr(
-            gp.quicksum(x[i, j, v, k]
-                        for i in N0
-                        for k in K
-                        for v in V
-                        if i != j) == 1,
-            name=f"atendimento_{j}"
-    )
-        
-    for k in K:
-        for v in V:
-            for j in N:
-
-                entrada = gp.quicksum(x[i, j, v, k]
-                                    for i in N0
-                                    if i != j)
-
-                saida = gp.quicksum(x[j, i, v, k]
-                                    for i in N0
-                                    if i != j)
-
-                modelo.addConstr(
-                    entrada - saida == 0,
-                    name=f"conservacao_{j}_{v}_{k}"
-                )
-
-    for k in K:
-        for v in V:
-            modelo.addConstr(
-                gp.quicksum(x[0, j, v, k]
-                            for j in N) == y[v, k],
-                name=f"inicio_viagem_{v}_{k}"
-            )
-            modelo.addConstr(
-                gp.quicksum(x[i, 0, v, k]
-                            for i in N) == y[v, k],
-                name=f"termino_viagem_{v}_{k}"
-            )
-
-    for k in K:
-        for v in V:
-            if v > 1:
-                modelo.addConstr(
-                    y[v, k] <= y[v-1, k],
-                    name=f"sequencia_viagem_{v}_{k}"
-                )
-
-    for k in K:
-        for v in V:
-            for i in N:
-                modelo.addConstr(
-                    B[i, v, k] >= self.instancia.e[i-1] * gp.quicksum(x[j, i, v, k]
-                    for j in N0 if i != j),
-                    name=f"janela_inferior_{i}_{v}_{k}"
-                )
-                modelo.addConstr(
-                    B[i, v, k] <= self.instancia.l[i-1] * gp.quicksum(x[j, i, v, k]
-                    for j in N0 if i != j),
-                    name=f"janela_superior_{i}_{v}_{k}"
-                )
-
-    for k in K:
-        for v in V:
-            for i in N0:
-                for j in N0:
-                    
-                    if i == j:
-                        continue
-                    
-                    elif i == 0 and v == 1:
-                        modelo.addConstr(
-                            self.instancia.s[0] + self.instancia.T[0, j] - M * (1 - x[0, j, 1, k]) 
-                            <= B[j, 1, k],
-                            name=f"fluxo_tempo_intra_0_{j}_{v}_{k}"
-                        )
-
-                    elif i != 0:
-                        modelo.addConstr(
-                            B[i, v, k] + self.instancia.s[i] + self.instancia.T[i, j]
-                            - M * (1 - x[i, j, v, k]) <= B[j, v, k],
-                        name=f"fluxo_tempo_intra_{i}_{j}_{v}_{k}"
-                    )
-                
-                if v > 1 and i != 0:
-                    modelo.addConstr(
-                        B[0, v-1, k] + self.instancia.s[0] + self.instancia.T[0, i] 
-                        - M * (1 - x[0, i, v, k]) <= B[i, v, k],
-                        name=f"fluxo_tempo_inter_{i}_{v}_{k}"
-                    )
-
-    for k in K:
-        for v in V:
-            for i in N:
-                modelo.addConstr(
-                    B[0, v, k] - B[i, v, k] + self.instancia.s[0] + self.instancia.T[0, i] 
-                    - M*(1 - x[0, i, v, k]) <= self.instancia.Tmax * y[v, k],
-                    name=f"tempo_viagem_{v}_{k}"
-                )
-    
-    modelo.update()
-
-    return modelo
-
-  def __busca_local_gurobi(self, solucao: Solucao, limite_tempo: float, node_limit, iter_limit):
-    solucao.carrega_para_modelo_gurobi(self.modelo,
-                                                  self.instancia)
-    
-    self.modelo.setParam('OutputFlag', 0)
-    self.modelo.update()
-    #self.modelo.setParam(GRB.Param.TimeLimit, limite_tempo)
-    self.modelo.setParam(GRB.Param.MIPFocus, 1)
-    self.modelo.setParam(GRB.Param.NodeLimit, node_limit)
-    #self.modelo.setParam(GRB.Param.IterationLimit, iter_limit)
-
-    self.modelo.optimize()
-
-    nos_explorados = self.modelo.NodeCount
-    iteracoes_utilizadas = self.modelo.IterCount
-    print(iteracoes_utilizadas)
-
-    self.avaliacoes += nos_explorados + iteracoes_utilizadas
-
-    solucao_encontrada = Solucao()
-    solucao_encontrada.carrega_modelo_gurobi(self.modelo,
-                                             self.instancia)
-
-    return solucao_encontrada
 
   def __realocar_requisicao(self, solucao: Solucao, requisicao: int,
                            onibus_origem: int, viagem_origem: int,
@@ -589,13 +397,48 @@ class MACS:
         self.__calcula_chegadas_gurobi(nova_solucao, onibus_origem)
       else:
         del nova_solucao.rota[onibus_origem][viagem_origem]
+        del nova_solucao.chegada[onibus_origem][viagem_origem]
         for v in list(nova_solucao.rota[onibus_origem].keys()):
           if v > viagem_origem:
             nova_solucao.rota[onibus_origem][v-1] = nova_solucao.rota[onibus_origem].pop(v)
+            nova_solucao.chegada[onibus_origem][v-1] = nova_solucao.chegada[onibus_origem].pop(v)
         
       self.__calcula_chegadas_gurobi(nova_solucao, onibus_destino)
 
     return nova_solucao, realocou
+
+  def __first_improvement_realocacao(self, solucao: Solucao, max_avaliacoes):
+    solucao_incumbente = None
+    melhor_encontrado = copy.deepcopy(solucao)
+    lista_origens = [(r, v, k) for k in solucao.rota 
+                     for v in solucao.rota[k] 
+                     for r in solucao.rota[k][v] if r != 0]
+    random.shuffle(lista_origens)
+    
+    lista_destinos = [(v, k) for k in solucao.rota 
+                     for v in solucao.rota[k]]
+    random.shuffle(lista_destinos)
+    
+    for origem in lista_origens:
+      for destino in lista_destinos:
+        solucao_incumbente = self.__realocar_requisicao(
+          solucao, origem[0], origem[2], origem[1], destino[1], destino[0])
+        self.solucoes_exploradas += 1
+
+        if solucao_incumbente[1]:
+          if solucao_incumbente[0].factivel(self.instancia):
+            f_objetivo(solucao_incumbente[0], self.instancia)
+            self.avaliacoes += 1
+            self.solucoes_factiveis += 1
+            if solucao_incumbente[0].fx < melhor_encontrado.fx:
+              self.melhorias += 1
+              melhor_encontrado = solucao_incumbente[0]
+              return melhor_encontrado
+
+        if self.avaliacoes >= max_avaliacoes:
+          return melhor_encontrado
+
+    return melhor_encontrado
 
   def __best_improvement_realocacao(self, solucao: Solucao, max_avaliacoes):
     solucao_incumbente = None
@@ -659,7 +502,8 @@ class MACS:
         total_servico = self.instancia.Tmax * self.instancia.K
         while Q:
           i = self.__seleciona_requisicao(Q)
-          k = self.__seleciona_onibus(Qk, i, servico_restante_onibus, total_servico, alpha1, beta1)
+          k = self.__seleciona_onibus(Qk, i, servico_restante_onibus, total_servico, 
+                                      alpha1, beta1)
           servico_restante_onibus[k] -= self.instancia.s[i]
           total_servico -= self.instancia.s[i]
           Qk[k].append(i)
@@ -674,6 +518,7 @@ class MACS:
             i = sol.rota[k][1][-1]
             n_viagens = sol.rota[k][1].count(0)
             if (0 not in Qk[k] and i != 0 and n_viagens < self.instancia.r): Qk[k].append(0)
+            alpha2_atual = alpha2 * (self.solucoes_factiveis/self.solucoes_exploradas)
             j = self.__seleciona_proxima_requisicao(Qk[k], i, alpha2, beta2)
             sol.rota[k][1].append(j)
             Qk[k].remove(j)
@@ -688,12 +533,27 @@ class MACS:
           self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
-          self.__atualiza_feromonios(1, solucao)
           print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
+          self.__atualiza_feromonios(1, solucao) 
+
+          # Busca Local
+          if self.avaliacoes < max_avaliacoes:
+
+            solucao_busca = copy.deepcopy(solucao)
+            melhor_fx = solucao_busca.fx
+            melhoria_local = 1
+            while melhoria_local > 0.01:
+              solucao_busca = self.__best_improvement_realocacao(
+                solucao_busca, max_avaliacoes)
+              if not (solucao_busca.fx < melhor_fx):
+                break
+              else:
+                melhoria_local = (melhor_fx - solucao_busca.fx)/melhor_fx
+                melhor_fx = solucao_busca.fx
+            solucao = solucao_busca
 
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
-            
             melhor_solucao = solucao
             print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
 
@@ -702,18 +562,6 @@ class MACS:
         else:
             self.__penaliza_feromonios_rota(solucao, 0.9)
             self.__penaliza_feromonios_onibus(solucao, 0.9)
-      
-      # Busca Local
-      if self.avaliacoes < max_avaliacoes:
-        solucao_busca = copy.deepcopy(melhor_solucao)
-        melhor_fx = solucao_busca.fx
-        while True:
-          solucao_busca = self.__best_improvement_realocacao(solucao_busca, max_avaliacoes)
-          if not (solucao_busca.fx < melhor_fx):
-            break
-          else:
-            melhor_fx = solucao_busca.fx
-        melhor_solucao = solucao_busca
 
       self.__atualiza_feromonios(rho, melhor_solucao)
 
@@ -725,7 +573,7 @@ solucao_inicial = Constroi_solucao_inicial(instancia)
 print(solucao_inicial)
 macs = MACS(instancia, solucao_inicial)
 
-solucao = macs.otimizar(n_formigas=50, max_avaliacoes=2100, alpha1=0.2,beta1=0,
+solucao = macs.otimizar(n_formigas=50, max_avaliacoes=2100, alpha1=0.5,beta1=0.2,
                          alpha2=0.5,beta2=0.5,rho=0.6)
 fim = time.time()
 print(macs)
