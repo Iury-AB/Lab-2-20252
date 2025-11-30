@@ -6,13 +6,12 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from exemplo_prof.dados import Dados, carrega_dados_json
-from exemplo_prof.solucao import Solucao
-import implementacao.grafo as grafo
+from dados import Dados, carrega_dados_json
+from solucao import Solucao
+import grafo
 import Restricoes as res
 import numpy as np
 import random
-import math
 import gurobipy as gp
 from gurobipy import GRB
 import copy
