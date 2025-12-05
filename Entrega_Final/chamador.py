@@ -6,6 +6,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Any, Dict
+import math
 
 from matplotlib.patches import FancyArrowPatch
 
@@ -74,17 +75,14 @@ def executar_e_visualizar():
 
 def visualizar_rotas_solucao_integrada(solucao: Solucao, dados_json: Dict[str, Any], nome_instancia: str, salvar: bool = False) -> None:
     """
-    Gera visualização 2D completa das rotas, removendo rótulos e alterando o marcador 
-    de Entrega (D) para Diamante, resolvendo a ambiguidade com Aeronaves.
+    Gera visualização em facetas (subplots): Um gráfico separado para cada ônibus.
     """
-    
-    fig, ax = plt.subplots(1, 1, figsize=(14, 10))
     
     # Extração de dados
     coords = dados_json['coordenadas_pontos']
     N_req = dados_json['numeroRequisicoes']
     
-    # --- 1. Mapeamento de Pontos ---
+    # --- 1. Mapeamento de Pontos (Geral) ---
     ponto_rota_coord = {0: tuple(coords['garagem'])}
     req_coleta_coord: Dict[int, Tuple[float, float]] = {}
     req_entrega_coord: Dict[int, Tuple[float, float]] = {}
@@ -94,104 +92,150 @@ def visualizar_rotas_solucao_integrada(solucao: Solucao, dados_json: Dict[str, A
         req_coleta_coord[req_id] = tuple(coords['pontos_coleta'][i])
         req_entrega_coord[req_id] = tuple(coords['pontos_entrega'][i])
 
-    # --- 2. Plotagem do Layout Estático (Contexto) ---
+    # --- 2. Configuração da Grade de Subplots ---
+    bus_ids = sorted(solucao.rota.keys())
+    num_onibus = len(bus_ids)
     
-    ax.plot(coords['garagem'][0], coords['garagem'][1], 'ks', markersize=12, label='Garagem', zorder=12)
+    # Define colunas (ex: 2 ou 3 por linha) e calcula linhas necessárias
+    ncols = 3 if num_onibus > 4 else 2
+    nrows = math.ceil(num_onibus / ncols)
     
-    portoes_x = [p[0] for p in coords['portoes']]
-    portoes_y = [p[1] for p in coords['portoes']]
-    ax.plot(portoes_x, portoes_y, 'co', markersize=8, alpha=0.3, label='Portões (Geral)', zorder=1)
+    # Ajusta o tamanho da figura baseado no número de plots
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6 * ncols, 5 * nrows), constrained_layout=True)
     
-    # Aeronaves (Estrela - Mantido)
-    aeronaves_x = [p[0] for p in coords['posicoes_aeronaves']]
-    aeronaves_y = [p[1] for p in coords['posicoes_aeronaves']]
-    ax.plot(aeronaves_x, aeronaves_y, 'r*', markersize=10, label='Aeronaves (Geral)', zorder=1)
-    
-    # Pontos de Coleta (Círculos Azuis)
-    col_coords_x = [req_coleta_coord[i][0] for i in req_coleta_coord.keys()]
-    col_coords_y = [req_coleta_coord[i][1] for i in req_coleta_coord.keys()]
-    ax.plot(col_coords_x, col_coords_y, 'bo', markersize=8, alpha=0.6, label='Coleta (P)', zorder=12)
+    # Garante que axes seja sempre uma lista plana, mesmo se for 1x1
+    if num_onibus == 1:
+        axes_flat = [axes]
+    else:
+        axes_flat = axes.flatten()
 
-    # CORREÇÃO: Entrega (Diamante - Distinto de Aeronaves)
-    ent_coords_x = [req_entrega_coord[i][0] for i in req_entrega_coord.keys()]
-    ent_coords_y = [req_entrega_coord[i][1] for i in req_entrega_coord.keys()]
-    ax.plot(ent_coords_x, ent_coords_y, 'mD', markersize=8, alpha=0.6, label='Entrega (D)', zorder=12)
-    
-    # --- 3. Plotagem das Rotas (Duplicação e Reconstrução do Caminho) ---
-    
-    num_onibus = len(solucao.rota.keys())
-    cores = plt.get_cmap('hsv', num_onibus + 1)
-    
-    linhas_plottadas = {} 
+    # --- Função Auxiliar para Plotar o Contexto Estático em cada Subplot ---
+    def plotar_contexto_estatico(ax):
+        # Garagem
+        ax.plot(coords['garagem'][0], coords['garagem'][1], 'ks', markersize=8, label='Garagem', zorder=1)
         
-    for k, viagens in solucao.rota.items():
-        cor_onibus = cores(k)
+        # Portões
+        portoes_x = [p[0] for p in coords['portoes']]
+        portoes_y = [p[1] for p in coords['portoes']]
+        ax.plot(portoes_x, portoes_y, 'co', markersize=5, alpha=0.15, zorder=0)
         
-        for v, rota in viagens.items():
-            if not rota or len(rota) <= 1:
-                continue
-            
-            # Garante a rota completa, incluindo o retorno à garagem
-            rota_original = rota.copy()
-            if rota_original[-1] != 0:
-                rota_original.append(0)
-            
-            # --- Reconstrução da Rota com Eventos P e D ---
-            rota_eventos = []
-            ponto_atual = 0 
-            
-            for req_destino_id in rota_original[1:]:
-                if req_destino_id != 0:
-                    # 1. Arco de Coleta (P): Arco de Viagem X -> P_i
-                    coord_p1 = ponto_rota_coord[ponto_atual] if ponto_atual == 0 else req_entrega_coord.get(ponto_atual, (0, 0))
-                    coord_p2 = req_coleta_coord[req_destino_id]
-                    
-                    rota_eventos.append({'origem_id': ponto_atual, 'destino_id': req_destino_id, 'tipo': 'P', 'coord_p1': coord_p1, 'coord_p2': coord_p2})
-                    
-                    # 2. Arco de Entrega (D): Arco de Evento P_i -> D_i
-                    rota_eventos.append({'origem_id': req_destino_id, 'destino_id': req_destino_id, 'tipo': 'D', 'coord_p1': req_coleta_coord[req_destino_id], 'coord_p2': req_entrega_coord[req_destino_id]})
-                    
-                    ponto_atual = req_destino_id
-                
-                elif req_destino_id == 0 and ponto_atual != 0:
-                    # 3. Retorno à Garagem (0): Arco de D_anterior -> 0
-                    rota_eventos.append({'origem_id': ponto_atual, 'destino_id': 0, 'tipo': 'G', 'coord_p1': req_entrega_coord.get(ponto_atual, (0, 0)), 'coord_p2': ponto_rota_coord[0]})
-                    ponto_atual = 0
+        # Aeronaves
+        aeronaves_x = [p[0] for p in coords['posicoes_aeronaves']]
+        aeronaves_y = [p[1] for p in coords['posicoes_aeronaves']]
+        ax.plot(aeronaves_x, aeronaves_y, 'r*', markersize=6, alpha=0.2, zorder=0)
+        
+        # Pontos de Coleta (Círculos Azuis - todos, para contexto)
+        col_coords_x = [req_coleta_coord[i][0] for i in req_coleta_coord.keys()]
+        col_coords_y = [req_coleta_coord[i][1] for i in req_coleta_coord.keys()]
+        ax.plot(col_coords_x, col_coords_y, 'bo', markersize=4, alpha=0.1, zorder=0)
 
-            # --- Plotar os Arcos Reconstruídos ---
-            
-            for i, evento in enumerate(rota_eventos):
-                p1 = evento['coord_p1']
-                p2 = evento['coord_p2']
-                
-                # 2. Definir Parâmetros Geométricos
-                curvatura_rad = 0.2 + (k * 0.02)
-                
-                # FancyArrowPatch desenha o arco e a seta na ponta
-                seta_arco = FancyArrowPatch(
-                    p1, p2, 
-                    connectionstyle=f'arc3,rad={curvatura_rad}',
-                    color=cor_onibus, 
-                    linewidth=3, 
-                    arrowstyle='-|>', 
-                    mutation_scale=15, 
-                    alpha=0.6,
-                    zorder=3
-                )
-                ax.add_patch(seta_arco)
-            
-                # --- Rótulos (Texto) Removidos ---
-            
-            # --- Adicionar Legenda Única para Rota do Ônibus ---
-            if k not in linhas_plottadas:
-                ax.plot([], [], color=cor_onibus, linewidth=3, alpha=0.6, label=f'Rota Ônibus {k}', zorder=3)
-                linhas_plottadas[k] = True
+        # Entrega (Diamante - todos, para contexto)
+        ent_coords_x = [req_entrega_coord[i][0] for i in req_entrega_coord.keys()]
+        ent_coords_y = [req_entrega_coord[i][1] for i in req_entrega_coord.keys()]
+        ax.plot(ent_coords_x, ent_coords_y, 'mD', markersize=4, alpha=0.1, zorder=0)
 
-    # 4. Configuração final do gráfico
-    ax.set_xlabel('Posição X (metros)')
-    ax.set_ylabel('Posição Y (metros)')
-    ax.set_title(f'Rotas Otimizadas (Arqueadas) - Instância {nome_instancia.capitalize()}')
+    # Cores para distinguir visualmente (opcional, já que estão separados)
+    cmap_cores = plt.get_cmap('tab10', num_onibus + 1)
+
+    # --- 3. Iteração por Faceta (Ônibus) ---
+    for idx, ax in enumerate(axes_flat):
+        if idx < num_onibus:
+            k = bus_ids[idx]  # ID do ônibus atual
+            cor_onibus = cmap_cores(idx)
+            
+            # Plota o fundo (aeroporto)
+            plotar_contexto_estatico(ax)
+            
+            viagens = solucao.rota[k]
+            tem_rota = False
+
+            # --- Lógica de Rota Específica do Ônibus K ---
+            for v, rota in viagens.items():
+                if not rota or len(rota) <= 1:
+                    continue
+                
+                tem_rota = True
+                
+                # Garante a rota completa
+                rota_original = rota.copy()
+                if rota_original[-1] != 0:
+                    rota_original.append(0)
+                
+                # --- Reconstrução da Rota ---
+                ponto_atual = 0 
+                for req_destino_id in rota_original[1:]:
+                    coord_origem = (0,0)
+                    coord_destino = (0,0)
+                    
+                    # Lógica simplificada de reconstrução para plotagem
+                    # Se não é 0, o destino é um Ponto de Coleta
+                    if req_destino_id != 0:
+                        # Arco Viagem: Ponto Atual (Origem ou D anterior) -> P (Coleta Atual)
+                        coord_origem = ponto_rota_coord[0] if ponto_atual == 0 else req_entrega_coord[ponto_atual]
+                        coord_destino = req_coleta_coord[req_destino_id]
+                        
+                        # Plota arco até a COLETA
+                        seta = FancyArrowPatch(
+                            coord_origem, coord_destino,
+                            connectionstyle=f'arc3,rad=0.2',
+                            color=cor_onibus, linewidth=2, arrowstyle='-|>', mutation_scale=10, alpha=0.8, zorder=3
+                        )
+                        ax.add_patch(seta)
+                        
+                        # Plota arco da COLETA para ENTREGA (P -> D)
+                        seta_interna = FancyArrowPatch(
+                            req_coleta_coord[req_destino_id], req_entrega_coord[req_destino_id],
+                            connectionstyle=f'arc3,rad=0.1',
+                            color=cor_onibus, linewidth=1.5, linestyle='--', arrowstyle='-|>', mutation_scale=8, alpha=0.8, zorder=3
+                        )
+                        ax.add_patch(seta_interna)
+                        
+                        # Destaca os pontos visitados especificamente por este ônibus
+                        ax.plot(req_coleta_coord[req_destino_id][0], req_coleta_coord[req_destino_id][1], 'bo', markersize=6, alpha=1.0, zorder=4)
+                        ax.plot(req_entrega_coord[req_destino_id][0], req_entrega_coord[req_destino_id][1], 'mD', markersize=6, alpha=1.0, zorder=4)
+                        
+                        ponto_atual = req_destino_id
+
+                    elif req_destino_id == 0 and ponto_atual != 0:
+                        # Retorno à Garagem: D anterior -> 0
+                        coord_origem = req_entrega_coord[ponto_atual]
+                        coord_destino = ponto_rota_coord[0]
+                        
+                        seta = FancyArrowPatch(
+                            coord_origem, coord_destino,
+                            connectionstyle=f'arc3,rad=0.2',
+                            color='gray', linewidth=1, linestyle=':', arrowstyle='-|>', mutation_scale=10, alpha=0.5, zorder=2
+                        )
+                        ax.add_patch(seta)
+                        ponto_atual = 0
+
+            # Configurações do Subplot
+            ax.set_title(f'Ônibus {k}', fontsize=10, fontweight='bold', color='black')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.grid(True, alpha=0.2)
+            
+            if not tem_rota:
+                ax.text(0.5, 0.5, "Sem Rota", ha='center', va='center', transform=ax.transAxes, color='red')
+
+        else:
+            # Oculta subplots vazios (se houver mais espaço na grade que ônibus)
+            ax.axis('off')
+
+    # Título Global
+    fig.suptitle(f'Rotas por Veículo - Instância {nome_instancia.capitalize()}', fontsize=14)
     
+    # Legenda Global (Cria elementos falsos para a legenda)
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], marker='s', color='w', markerfacecolor='k', label='Garagem'),
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='b', label='Coleta (P)'),
+        Line2D([0], [0], marker='D', color='w', markerfacecolor='m', label='Entrega (D)'),
+        Line2D([0], [0], color='gray', lw=2, label='Rota'),
+        Line2D([0], [0], color='gray', lw=1.5, linestyle='--', label='Serviço (P->D)')
+    ]
+    fig.legend(handles=legend_elements, loc='lower center', ncol=5, bbox_to_anchor=(0.5, 0.01))
+
     # Plotar as Rotas Encontradas no Canto Inferior Esquerdo
     route_text = str(solucao) 
     
@@ -205,13 +249,8 @@ def visualizar_rotas_solucao_integrada(solucao: Solucao, dados_json: Dict[str, A
             zorder=20
            )
 
-    ax.legend(loc='upper right', fontsize=8)
-    ax.grid(True, alpha=0.3)
-    ax.axis('equal')
-    
-    plt.tight_layout()
     if salvar:
-        plt.savefig(f'rotas_finais_{nome_instancia}.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'rotas_facetas_{nome_instancia}.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 if __name__ == "__main__":
