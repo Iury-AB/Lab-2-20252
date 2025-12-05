@@ -187,8 +187,8 @@ class MACS:
     vontade_rota = {}
     for j in distribuicao:
       atratividade_rota[j] = self.menor_distancia / self.instancia.c[i][j]
-      vontade_rota[j] = ((atratividade_rota[j] ** beta) *
-                              (self.feromonios_rota[i][j] ** alpha))
+      vontade_rota[j] = max((atratividade_rota[j] ** beta) *
+                              (self.feromonios_rota[i][j] ** alpha), 1e-100)
 
     pesos = list(vontade_rota.values())
     Requisicao_j = random.choices(distribuicao, weights=pesos, k=1)[0]
@@ -431,7 +431,6 @@ class MACS:
             self.solucoes_factiveis += 1
             if solucao_incumbente[0].fx < melhor_encontrado.fx:
               self.melhorias += 1
-              print(solucao_incumbente[0].fx)
               melhor_encontrado = solucao_incumbente[0]
               return melhor_encontrado
 
@@ -468,7 +467,6 @@ class MACS:
                   self.solucoes_factiveis += 1
                   if solucao_incumbente[0].fx < melhor_encontrado.fx:
                     self.melhorias += 1
-                    print(solucao_incumbente[0].fx)
                     melhor_encontrado = solucao_incumbente[0]
 
               if self.avaliacoes >= max_avaliacoes:
@@ -482,7 +480,6 @@ class MACS:
     K = self.instancia.K
 
     melhor_solucao = self.sol_inicial
-    print(melhor_solucao.fx)
     self.feromonios_onibus
     self.avaliacoes += 1
 
@@ -534,13 +531,13 @@ class MACS:
           self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
-          print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
+          #print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
           self.__atualiza_feromonios(1, solucao) 
 
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
             melhor_solucao = solucao
-            print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
+            #print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
 
           if self.avaliacoes > max_avaliacoes:
             return melhor_solucao
