@@ -479,9 +479,16 @@ class MACS:
     m = n_formigas
     K = self.instancia.K
 
+    convergencia = []
+    avaliacoes = []
+
     melhor_solucao = self.sol_inicial
+    convergencia.append(melhor_solucao.fx)
+    avaliacoes.append(self.avaliacoes)
+    
     self.feromonios_onibus
     self.avaliacoes += 1
+
 
     while (self.avaliacoes < max_avaliacoes and 
            self.solucoes_exploradas < 30*max_avaliacoes):
@@ -531,13 +538,13 @@ class MACS:
           self.solucoes_factiveis+=1
           f_objetivo(solucao, self.instancia)
           self.avaliacoes += 1
-          #print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
+          print(f"Solucao encontrada: {solucao.fx}, com {self.avaliacoes} avaliações. e {self.solucoes_exploradas} soluções geradas.")
           self.__atualiza_feromonios(1, solucao) 
 
           if solucao.fx < melhor_solucao.fx:
             self.melhorias+=1
             melhor_solucao = solucao
-            #print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
+            print(f"Ótimo fx atualizado para: {melhor_solucao.fx}, com {self.melhorias} atualizações")
 
           if self.avaliacoes > max_avaliacoes:
             return melhor_solucao
@@ -545,20 +552,26 @@ class MACS:
             self.__penaliza_feromonios_rota(solucao, 0.9)
             self.__penaliza_feromonios_onibus(solucao, 0.9)
 
-      self.__atualiza_feromonios(rho, melhor_solucao)
-
       # Busca Local
       if self.avaliacoes < max_avaliacoes:
 
         solucao_busca = copy.deepcopy(melhor_solucao)
         melhor_fx = solucao_busca.fx
-        while True:
+        while True and solucao_busca.factivel(self.instancia):
           solucao_busca = self.__best_improvement_realocacao(
             solucao_busca, min(self.avaliacoes+100, max_avaliacoes))
           if not (solucao_busca.fx < melhor_fx):
             break
           else:
             melhor_fx = solucao_busca.fx
+            print(solucao_busca.fx)
+            convergencia.append(solucao_busca.fx)
+            avaliacoes.append(self.avaliacoes)
         melhor_solucao = solucao_busca
+        
+      self.__atualiza_feromonios(rho, melhor_solucao)
+      
+      convergencia.append(melhor_solucao.fx)
+      avaliacoes.append(self.avaliacoes)
 
-    return melhor_solucao
+    return (melhor_solucao, convergencia, avaliacoes)
